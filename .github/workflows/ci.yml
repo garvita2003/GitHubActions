@@ -1,0 +1,101 @@
+name: Matrix CI with Continue on Error
+
+on:
+  push:
+    branches:
+      - 'main' 
+      
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger'
+        required: false
+        default: 'Manual run'
+
+# Define the jobs that will run as part of this workflow.
+jobs:
+  # Define a job named 'build-and-test'.
+  build-and-test:
+    # Use a matrix strategy to run this job on multiple operating systems.
+    strategy:
+      # If one matrix job fails, do not fail the entire matrix immediately.
+      # Other jobs in the matrix will continue to run.
+      fail-fast: false # Set to 'false' to ensure all matrix jobs run even if one fails.
+
+      # Define the different operating systems (runners) for the matrix.
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # If you had a self-hosted runner named 'wwtc', you would use:
+        # os: [ubuntu-latest, windows-latest, macos-latest, self-hosted-wwtc]
+        # And ensure your self-hosted runner is configured with that label.
+
+    # Specifies the runner environment for each job in the matrix.
+    runs-on: ${{ matrix.os }}
+
+    # Steps define the sequence of tasks to be executed.
+    steps:
+      # Step 1: Checkout the repository code.
+      # This action checks out your repository under $GITHUB_WORKSPACE,
+      # so your workflow can access it.
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Display the current operating system.
+      - name: Show OS
+        run: |
+          echo "Running on ${{ matrix.os }}"
+          # On Linux/macOS, print the OS name. On Windows, print the OS version.
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            cat /etc/os-release
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            sw_vers
+          fi
+
+      # Step 3: Run basic commands based on the OS.
+      # This step demonstrates conditional execution and sudo commands.
+      - name: Run OS-specific Commands
+        run: |
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            echo "--- Linux Specific Commands (with sudo) ---"
+            # Example: Update package lists (requires sudo)
+            sudo apt-get update -y
+            # Example: Install a common utility (requires sudo)
+            sudo apt-get install -y curl
+            # Example: Create a file in a protected directory (requires sudo)
+            echo "Hello from Linux" | sudo tee /opt/test_file.txt
+            sudo cat /opt/test_file.txt
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            echo "--- Windows Specific Commands ---"
+            # Example: Display network configuration
+            ipconfig /all
+            # Example: Create a directory
+            mkdir C:\temp_dir
+            # Example: Write to a file
+            echo "Hello from Windows" > C:\temp_dir\test_file.txt
+            type C:\temp_dir\test_file.txt
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            echo "--- macOS Specific Commands ---"
+            # Example: Display system information
+            sysctl -n machdep.cpu.brand_string
+            # Example: List contents of /usr/local
+            ls -la /usr/local
+            # Example: Create a file
+            echo "Hello from macOS" > ~/test_file.txt
+            cat ~/test_file.txt
+          fi
+
+      # Step 4: Simulate a potential failure on one OS, but allow others to continue.
+      # This step will intentionally fail on Ubuntu, but the 'continue-on-error: true'
+      # will ensure the Windows and macOS jobs still complete.
+      - name: Simulate a Step Failure (and continue)
+        if: ${{ matrix.os == 'ubuntu-latest' }} # Only run this on Ubuntu
+        run: |
+          echo "This step is designed to fail on Ubuntu."
+          exit 1 # This command will cause the step to fail
+        continue-on-error: true # This is crucial: allows the workflow to proceed despite this step's failure.
+
+      # Step 5: A final success message.
+      - name: All good!
+        run: echo "This job completed successfully (or continued despite errors) on ${{ matrix.os }}!"
