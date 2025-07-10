@@ -3,8 +3,8 @@ name: Matrix CI with Continue on Error
 on:
   push:
     branches:
-      - 'main' 
-      
+      - 'feature/*' 
+
   workflow_dispatch:
     inputs:
       reason:
