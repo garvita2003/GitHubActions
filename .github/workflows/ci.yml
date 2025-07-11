@@ -1,0 +1,106 @@
+name: Cross-OS Test Workflow
+
+# This workflow can be triggered manually from the GitHub Actions UI.
+# You can choose whether to simulate a failure on Windows for testing.
+on:
+  workflow_dispatch:
+    inputs:
+      simulate_windows_failure:
+        description: 'Set to true to simulate a script failure on Windows'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  # This job executes the main task across different operating systems.
+  # It addresses points 1, 2, and 3 of your request.
+  run_task_on_os:
+    runs-on: ${{ matrix.os }} # Run on the OS specified by the matrix
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest] # Point 1: Three different OS
+      # Point 3: Even if a job for a particular OS is red (fails), execute the task in all OS.
+      # `fail-fast: false` ensures that all matrix jobs will run to completion,
+      # even if one of them fails.
+      fail-fast: false 
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Action to checkout your repository code
+
+      - name: Run task on ${{ matrix.os }} # Point 2: Execute one single job
+        id: task_execution_step # Give this step an ID to check its outcome later
+        run: |
+          echo "Starting task on ${{ matrix.os }}"
+          # Simulate a failure on Windows if the 'simulate_windows_failure' input is true.
+          # This demonstrates a "red" job while others continue.
+          if [[ "${{ matrix.os }}" == "windows-latest" && "${{ github.event.inputs.simulate_windows_failure }}" == "true" ]]; then
+            echo "Simulating a failure (exit 1) on Windows..."
+            exit 1 # Exiting with 1 causes this step (and thus this specific matrix job run) to fail
+          else
+            echo "Task completed successfully on ${{ matrix.os }}."
+          fi
+        shell: bash # Use bash for consistent shell behavior across OS (even on Windows)
+
+      - name: Create success marker artifact if task succeeded
+        # This step runs ONLY if the 'task_execution_step' for the current OS succeeded.
+        if: success() 
+        run: |
+          # Create a unique file to mark success for this specific OS run.
+          # The file name includes the OS to distinguish it from others.
+          echo "Success on ${{ matrix.os }}" > success_marker_${{ matrix.os }}.txt
+        shell: bash
+
+      - name: Upload success marker artifact
+        uses: actions/upload-artifact@v3 # Action to upload artifacts
+        # Only upload the artifact if the 'create success marker' step ran (i.e., task succeeded).
+        if: success() 
+        with:
+          name: success-markers # Name of the artifact group
+          path: success_marker_${{ matrix.os }}.txt # Path to the marker file
+          retention-days: 1 # Keep the artifact for a short period to save space
+
+  # This job determines the overall workflow status based on the success of individual OS tasks.
+  # It addresses point 4 of your request.
+  determine_final_workflow_status:
+    name: Final Workflow Status Check
+    runs-on: ubuntu-latest # Run this job on a single runner
+    needs: run_task_on_os # This job depends on the 'run_task_on_os' matrix job completing
+    # `if: always()` ensures this job runs regardless of whether 'run_task_on_os' had failures.
+    # This is important because `fail-fast: false` means the matrix job might still show
+    # a "red" overall status if any sub-job failed, but we want to override that.
+    if: always() 
+
+    steps:
+      - name: Download success marker artifacts
+        uses: actions/download-artifact@v3 # Action to download artifacts
+        with:
+          name: success-markers # Download the artifact group created by the previous job
+          path: ./success_markers/ # Directory to download artifacts into
+        # `continue-on-error: true` here allows this step to proceed even if no artifacts
+        # were uploaded (meaning all previous OS tasks failed).
+        continue-on-error: true 
+
+      - name: Evaluate if any OS script succeeded
+        id: check_any_success
+        run: |
+          SUCCESS_COUNT=0
+          # Check for the existence of any success marker files in the downloaded directory.
+          # `ls ... 1> /dev/null 2>&1` suppresses output and errors if no files are found.
+          if ls ./success_markers/success_marker_*.txt 1> /dev/null 2>&1; then
+            # Count the number of success marker files found.
+            SUCCESS_COUNT=$(ls ./success_markers/success_marker_*.txt | wc -l)
+          fi
+          
+          echo "Found $SUCCESS_COUNT successful OS runs."
+
+          # Point 4: If any one OS had successfully executed the complete job,
+          # then instead of showing red cross, show green tick mark.
+          if [ "$SUCCESS_COUNT" -gt 0 ]; then
+            echo "At least one OS script completed successfully. Marking workflow as green."
+            exit 0 # Exit with 0 for success, which makes this job (and thus the workflow) green
+          else
+            echo "All OS scripts failed. Marking workflow as red."
+            exit 1 # Exit with 1 for failure, which makes this job (and thus the workflow) red
+          fi
+        shell: bash
