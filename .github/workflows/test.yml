@@ -1,4 +1,4 @@
-name: Conditional Build and Continue on Failure
+name: Conditional Build and Fail-Fast Off
 
 on: [push, workflow_dispatch]
 
@@ -6,6 +6,8 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      # This is the key property.
+      # It ensures that even if one OS job fails, the other jobs in the matrix will continue to run.
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -14,16 +16,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run on Ubuntu (Always Passes)
-        if: runner.os == 'Linux'
-        run: echo "This job is running on Ubuntu."
+      # This step runs on all OSes and should pass.
+      - name: Start job
+        run: echo "Starting build job on ${{ runner.os }}..."
 
-      - name: Run on Windows (Always Fails)
+      # This step is conditionally set to fail on Windows only.
+      # The `|| true` is a trick to prevent the step from failing the entire job,
+      # but it's not needed here because `fail-fast: false` handles the overall status.
+      # The `if: runner.os == 'Windows'` makes sure the `exit 1` only runs on that specific OS.
+      - name: Intentionally fail on Windows
         if: runner.os == 'Windows'
         run: |
-          echo "This job is running on Windows."
-          exit 1  # This command causes the step to fail
+          echo "This job is running on Windows and will fail now."
+          exit 1  # This command causes the step to fail on purpose
 
-      - name: Run on macOS (Always Passes)
+      # These steps will only run if the previous step passed on their respective OSes.
+      - name: Complete job on Ubuntu
+        if: runner.os == 'Linux'
+        run: echo "The Ubuntu job completed successfully."
+
+      - name: Complete job on macOS
         if: runner.os == 'macOS'
-        run: echo "This job is running on macOS."
+        run: echo "The macOS job completed successfully."
+
+      - name: Log the failure on Windows
+        if: failure() && runner.os == 'Windows'
+        run: echo "The Windows job failed as expected. Proceeding with other jobs."
