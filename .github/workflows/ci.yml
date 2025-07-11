@@ -22,7 +22,7 @@ jobs:
 
       - name: Run OS-specific Commands
         run: |
-          if [ "${{ runner.os }}" == "Linux" ]; then
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
             echo "--- Linux Specific Commands (with sudo) ---"
             # Example: Update package lists (requires sudo)
             sudo apt-get update -y
@@ -31,7 +31,7 @@ jobs:
             # Example: Create a file in a protected directory (requires sudo)
             echo "Hello from Linux" | sudo tee /opt/test_file.txt
             sudo cat /opt/test_file.txt
-          elif [ "${{ runner.os }}" == "Windows" ]; then
+          elif [[ "${{ runner.os }}" == "Windows" ]]; then
             echo "--- Windows Specific Commands ---"
             # Example: Display network configuration
             ipconfig /all
@@ -40,7 +40,7 @@ jobs:
             # Example: Write to a file
             echo "Hello from Windows" > C:\temp_dir\test_file.txt
             type C:\temp_dir\test_file.txt
-          elif [ "${{ runner.os }}" == "macOS" ]; then
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
             echo "--- macOS Specific Commands ---"
             # Example: Display system information
             sysctl -n machdep.cpu.brand_string
