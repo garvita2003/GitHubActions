@@ -10,11 +10,6 @@ on:
 
   # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
-    inputs:
-      reason:
-        description: 'Reason for manual trigger'
-        required: false
-        default: 'Manual run'
 
 # Define the jobs that will run as part of this workflow.
 jobs:
@@ -35,8 +30,6 @@ jobs:
 
     # Specifies the runner environment for each job in the matrix.
     runs-on: ${{ matrix.os }}
-
-    continue-on-error: true
     # Steps define the sequence of tasks to be executed.
     steps:
       # Step 1: Checkout the repository code.
@@ -90,3 +83,5 @@ jobs:
             echo "Hello from macOS" > ~/test_file.txt
             cat ~/test_file.txt
           fi
+
+        continue-on-error: true
