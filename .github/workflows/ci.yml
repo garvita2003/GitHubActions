@@ -20,18 +20,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Show OS
-        run: |
-          echo "Running on ${{ matrix.os }}"
-          # On Linux/macOS, print the OS name. On Windows, print the OS version.
-          if [ "${{ runner.os }}" == "Linux" ]; then
-            cat /etc/os-release
-          elif [ "${{ runner.os }}" == "Windows" ]; then
-            systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
-          elif [ "${{ runner.os }}" == "macOS" ]; then
-            sw_vers
-          fi
-
       - name: Run OS-specific Commands
         run: |
           if [ "${{ runner.os }}" == "Linux" ]; then
