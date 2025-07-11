@@ -20,39 +20,32 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Run OS-specific Commands
+      - name: Linux Specific Commands
+        if: runner.os == 'Linux'
         run: |
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
-            echo "--- Linux Specific Commands (with sudo) ---"
-            # Update package lists
-            sudo apt-get update -y
-            # Install a common utility
-            sudo apt-get install -y curl
-            # Create a file in a protected directory
-            echo "Hello from Linux" | sudo tee /opt/test_file.txt
-            sudo cat /opt/test_file.txt
-          
-          elif [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "--- Windows Specific Commands ---"
-            # Display network configuration
-            ipconfig /all
-            # Create a directory
-            mkdir C:\temp_dir
-            # Write to a file
-            echo Hello from Windows > C:\temp_dir\test_file.txt
-            type C:\temp_dir\test_file.txt
-          
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            echo "--- macOS Specific Commands ---"
-            # Display system information
-            sysctl -n machdep.cpu.brand_string
-            # List contents of /usr/local
-            ls -la /usr/local
-            # Create a file
-            echo "Hello from macOS" > ~/test_file.txt
-            cat ~/test_file.txt
-          fi
-
+          echo "--- Linux Specific Commands (with sudo) ---"
+          sudo apt-get update -y
+          sudo apt-get install -y curl
+          echo "Hello from Linux" | sudo tee /opt/test_file.txt
+          sudo cat /opt/test_file.txt
+ 
+      - name: Windows Specific Commands
+        if: runner.os == 'Windows'
+        run: |
+          echo "--- Windows Specific Commands ---"
+          ipconfig /all
+          mkdir C:\temp_dir
+          echo Hello from Windows > C:\temp_dir\test_file.txt
+          type C:\temp_dir\test_file.txt
+ 
+      - name: macOS Specific Commands
+        if: runner.os == 'macOS'
+        run: |
+          echo "--- macOS Specific Commands ---"
+          sysctl -n machdep.cpu.brand_string
+          ls -la /usr/local
+          echo "Hello from macOS" > ~/test_file.txt
+          cat ~/test_file.txt
 
       # This step will intentionally fail on Ubuntu, but the 'continue-on-error: true'
       # will ensure the Windows and macOS jobs still complete.
