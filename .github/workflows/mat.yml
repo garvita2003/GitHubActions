@@ -1,0 +1,38 @@
+name: Matrix
+
+on:
+  push:
+    branches:
+      - 'feature/*' 
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false # Set to false to ensure all matrix jobs run even if one fails
+  
+    continue-on-error: true 
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run tests
+      run: |
+        echo "Running tests on ${{ matrix.os }}..."
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          echo "Simulating a test failure on Windows..."
+          exit 1 # This will cause the Windows job to fail
+        else
+          echo "Tests passed on ${{ matrix.os }}"
+        fi
