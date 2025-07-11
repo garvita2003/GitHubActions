@@ -1,106 +1,105 @@
-name: Cross-OS Test Workflow
+# Name of the workflow, displayed in the GitHub Actions tab.
+name: Matrix CI with Continue on Error
 
-# This workflow can be triggered manually from the GitHub Actions UI.
-# You can choose whether to simulate a failure on Windows for testing.
+# Events that trigger this workflow.
 on:
+  # Triggers the workflow on pushes to any branch.
+  push:
+    branches:
+      - '**' # This means any branch will trigger the workflow
+
+  # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
     inputs:
-      simulate_windows_failure:
-        description: 'Set to true to simulate a script failure on Windows'
+      reason:
+        description: 'Reason for manual trigger'
         required: false
-        default: 'true'
-        type: boolean
+        default: 'Manual run'
 
+# Define the jobs that will run as part of this workflow.
 jobs:
-  # This job executes the main task across different operating systems.
-  # It addresses points 1, 2, and 3 of your request.
-  run_task_on_os:
-    runs-on: ${{ matrix.os }} # Run on the OS specified by the matrix
+  # Define a job named 'build-and-test'.
+  build-and-test:
+    # Use a matrix strategy to run this job on multiple operating systems.
     strategy:
+      # If one matrix job fails, do not fail the entire matrix immediately.
+      # Other jobs in the matrix will continue to run.
+      fail-fast: false # Set to 'false' to ensure all matrix jobs run even if one fails.
+
+      # Define the different operating systems (runners) for the matrix.
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest] # Point 1: Three different OS
-      # Point 3: Even if a job for a particular OS is red (fails), execute the task in all OS.
-      # `fail-fast: false` ensures that all matrix jobs will run to completion,
-      # even if one of them fails.
-      fail-fast: false 
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # If you had a self-hosted runner named 'wwtc', you would use:
+        # os: [ubuntu-latest, windows-latest, macos-latest, self-hosted-wwtc]
+        # And ensure your self-hosted runner is configured with that label.
 
+    # Specifies the runner environment for each job in the matrix.
+    runs-on: ${{ matrix.os }}
+
+    # Steps define the sequence of tasks to be executed.
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4 # Action to checkout your repository code
+      # Step 1: Checkout the repository code.
+      # This action checks out your repository under $GITHUB_WORKSPACE,
+      # so your workflow can access it.
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Run task on ${{ matrix.os }} # Point 2: Execute one single job
-        id: task_execution_step # Give this step an ID to check its outcome later
+      # Step 2: Display the current operating system.
+      - name: Show OS
         run: |
-          echo "Starting task on ${{ matrix.os }}"
-          # Simulate a failure on Windows if the 'simulate_windows_failure' input is true.
-          # This demonstrates a "red" job while others continue.
-          if [[ "${{ matrix.os }}" == "windows-latest" && "${{ github.event.inputs.simulate_windows_failure }}" == "true" ]]; then
-            echo "Simulating a failure (exit 1) on Windows..."
-            exit 1 # Exiting with 1 causes this step (and thus this specific matrix job run) to fail
-          else
-            echo "Task completed successfully on ${{ matrix.os }}."
+          echo "Running on ${{ matrix.os }}"
+          # On Linux/macOS, print the OS name. On Windows, print the OS version.
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            cat /etc/os-release
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            sw_vers
           fi
-        shell: bash # Use bash for consistent shell behavior across OS (even on Windows)
 
-      - name: Create success marker artifact if task succeeded
-        # This step runs ONLY if the 'task_execution_step' for the current OS succeeded.
-        if: success() 
+      # Step 3: Run basic commands based on the OS.
+      # This step demonstrates conditional execution and sudo commands.
+      - name: Run OS-specific Commands
         run: |
-          # Create a unique file to mark success for this specific OS run.
-          # The file name includes the OS to distinguish it from others.
-          echo "Success on ${{ matrix.os }}" > success_marker_${{ matrix.os }}.txt
-        shell: bash
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            echo "--- Linux Specific Commands (with sudo) ---"
+            # Example: Update package lists (requires sudo)
+            sudo apt-get update -y
+            # Example: Install a common utility (requires sudo)
+            sudo apt-get install -y curl
+            # Example: Create a file in a protected directory (requires sudo)
+            echo "Hello from Linux" | sudo tee /opt/test_file.txt
+            sudo cat /opt/test_file.txt
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            echo "--- Windows Specific Commands ---"
+            # Example: Display network configuration
+            ipconfig /all
+            # Example: Create a directory
+            mkdir C:\temp_dir
+            # Example: Write to a file
+            echo "Hello from Windows" > C:\temp_dir\test_file.txt
+            type C:\temp_dir\test_file.txt
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            echo "--- macOS Specific Commands ---"
+            # Example: Display system information
+            sysctl -n machdep.cpu.brand_string
+            # Example: List contents of /usr/local
+            ls -la /usr/local
+            # Example: Create a file
+            echo "Hello from macOS" > ~/test_file.txt
+            cat ~/test_file.txt
+          fi
 
-      - name: Upload success marker artifact
-        uses: actions/upload-artifact@v3 # Action to upload artifacts
-        # Only upload the artifact if the 'create success marker' step ran (i.e., task succeeded).
-        if: success() 
-        with:
-          name: success-markers # Name of the artifact group
-          path: success_marker_${{ matrix.os }}.txt # Path to the marker file
-          retention-days: 1 # Keep the artifact for a short period to save space
-
-  # This job determines the overall workflow status based on the success of individual OS tasks.
-  # It addresses point 4 of your request.
-  determine_final_workflow_status:
-    name: Final Workflow Status Check
-    runs-on: ubuntu-latest # Run this job on a single runner
-    needs: run_task_on_os # This job depends on the 'run_task_on_os' matrix job completing
-    # `if: always()` ensures this job runs regardless of whether 'run_task_on_os' had failures.
-    # This is important because `fail-fast: false` means the matrix job might still show
-    # a "red" overall status if any sub-job failed, but we want to override that.
-    if: always() 
-
-    steps:
-      - name: Download success marker artifacts
-        uses: actions/download-artifact@v3 # Action to download artifacts
-        with:
-          name: success-markers # Download the artifact group created by the previous job
-          path: ./success_markers/ # Directory to download artifacts into
-        # `continue-on-error: true` here allows this step to proceed even if no artifacts
-        # were uploaded (meaning all previous OS tasks failed).
-        continue-on-error: true 
-
-      - name: Evaluate if any OS script succeeded
-        id: check_any_success
+      # Step 4: Simulate a potential failure on one OS, but allow others to continue.
+      # This step will intentionally fail on Ubuntu, but the 'continue-on-error: true'
+      # will ensure the Windows and macOS jobs still complete.
+      - name: Simulate a Step Failure (and continue)
+        if: ${{ matrix.os == 'ubuntu-latest' }} # Only run this on Ubuntu
         run: |
-          SUCCESS_COUNT=0
-          # Check for the existence of any success marker files in the downloaded directory.
-          # `ls ... 1> /dev/null 2>&1` suppresses output and errors if no files are found.
-          if ls ./success_markers/success_marker_*.txt 1> /dev/null 2>&1; then
-            # Count the number of success marker files found.
-            SUCCESS_COUNT=$(ls ./success_markers/success_marker_*.txt | wc -l)
-          fi
-          
-          echo "Found $SUCCESS_COUNT successful OS runs."
+          echo "This step is designed to fail on Ubuntu."
+          exit 1 # This command will cause the step to fail
+        continue-on-error: true # This is crucial: allows the workflow to proceed despite this step's failure.
 
-          # Point 4: If any one OS had successfully executed the complete job,
-          # then instead of showing red cross, show green tick mark.
-          if [ "$SUCCESS_COUNT" -gt 0 ]; then
-            echo "At least one OS script completed successfully. Marking workflow as green."
-            exit 0 # Exit with 0 for success, which makes this job (and thus the workflow) green
-          else
-            echo "All OS scripts failed. Marking workflow as red."
-            exit 1 # Exit with 1 for failure, which makes this job (and thus the workflow) red
-          fi
-        shell: bash
+      # Step 5: A final success message.
+      - name: All good!
+        run: echo "This job completed successfully (or continued despite errors) on ${{ matrix.os }}!"
