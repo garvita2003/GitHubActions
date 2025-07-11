@@ -24,32 +24,35 @@ jobs:
         run: |
           if [[ "${{ runner.os }}" == "Linux" ]]; then
             echo "--- Linux Specific Commands (with sudo) ---"
-            # Example: Update package lists (requires sudo)
+            # Update package lists
             sudo apt-get update -y
-            # Example: Install a common utility (requires sudo)
+            # Install a common utility
             sudo apt-get install -y curl
-            # Example: Create a file in a protected directory (requires sudo)
+            # Create a file in a protected directory
             echo "Hello from Linux" | sudo tee /opt/test_file.txt
             sudo cat /opt/test_file.txt
+          
           elif [[ "${{ runner.os }}" == "Windows" ]]; then
             echo "--- Windows Specific Commands ---"
-            # Example: Display network configuration
+            # Display network configuration
             ipconfig /all
-            # Example: Create a directory
+            # Create a directory
             mkdir C:\temp_dir
-            # Example: Write to a file
-            echo "Hello from Windows" > C:\temp_dir\test_file.txt
+            # Write to a file
+            echo Hello from Windows > C:\temp_dir\test_file.txt
             type C:\temp_dir\test_file.txt
+          
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
             echo "--- macOS Specific Commands ---"
-            # Example: Display system information
+            # Display system information
             sysctl -n machdep.cpu.brand_string
-            # Example: List contents of /usr/local
+            # List contents of /usr/local
             ls -la /usr/local
-            # Example: Create a file
+            # Create a file
             echo "Hello from macOS" > ~/test_file.txt
             cat ~/test_file.txt
           fi
+
 
       # This step will intentionally fail on Ubuntu, but the 'continue-on-error: true'
       # will ensure the Windows and macOS jobs still complete.
