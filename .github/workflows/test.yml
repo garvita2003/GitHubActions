@@ -1,0 +1,29 @@
+name: Conditional Build and Continue on Failure
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run on Ubuntu (Always Passes)
+        if: runner.os == 'Linux'
+        run: echo "This job is running on Ubuntu."
+
+      - name: Run on Windows (Always Fails)
+        if: runner.os == 'Windows'
+        run: |
+          echo "This job is running on Windows."
+          exit 1  # This command causes the step to fail
+
+      - name: Run on macOS (Always Passes)
+        if: runner.os == 'macOS'
+        run: echo "This job is running on macOS."
