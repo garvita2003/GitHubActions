@@ -3,19 +3,26 @@ name: Manual Matrix Workflow
 on:
   workflow_dispatch:
     inputs:
-      target_os:
-        description: 'Target OS to run the job on (e.g., ubuntu-latest, windows-latest, macos-latest)'
+      selected_os:
+        description: 'Target OS (ubuntu-latest, windows-latest, macos-latest, or all)'
         required: false
-        default: ''
+        default: 'all'
 
 jobs:
   run-on-os:
-    runs-on: ${{ matrix.os }}
-    if: ${{ github.event.inputs.target_os == '' || matrix.os == github.event.inputs.target_os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
+    runs-on: ${{ matrix.os }}
+
     steps:
-      - name: Print OS
+      - name: Check if this OS should run
+        if: ${{ github.event.inputs.selected_os != 'all' && github.event.inputs.selected_os != matrix.os }}
+        run: |
+          echo "Skipping this OS: ${{ matrix.os }}"
+          exit 0
+
+      - name: Run job on ${{ matrix.os }}
+        if: ${{ github.event.inputs.selected_os == 'all' || github.event.inputs.selected_os == matrix.os }}
         run: echo "Running on ${{ matrix.os }}"
