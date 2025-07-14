@@ -12,7 +12,7 @@ jobs:
   run-on-os:
     strategy:
       matrix:
-        os: ${{ fromJson(github.event.inputs.selected_os: != 'all' && github.event.inputs.selected_os: != '' && format('["{0}"]', github.event.inputs.selected_os:) || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
+        os: ${{ fromJson(github.event.inputs.selected_os!= 'all' && github.event.inputs.selected_os!= '' && format('["{0}"]', github.event.inputs.selected_os) || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
         
     runs-on: ${{ matrix.os }}
 
