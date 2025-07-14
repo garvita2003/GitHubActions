@@ -1,0 +1,65 @@
+name: Custom Workflow Success on Partial Pass
+
+on: [push, workflow_dispatch]
+
+jobs:
+  # 1. Job for Ubuntu - designed to always pass
+  build-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Run on Ubuntu
+        run: echo "This job is running on Ubuntu and will pass."
+
+  # 2. Job for Windows - designed to intentionally fail
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Run on Windows (Intentional Failure)
+        run: |
+          echo "This job is running on Windows and will intentionally fail."
+          exit 1 # This command causes the step (and thus this job) to fail
+
+  # 3. Job for macOS - designed to always pass
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Run on macOS
+        run: echo "This job is running on macOS and will pass."
+
+  # 4. Final job to determine the overall workflow status
+  # This job will make the entire workflow green if any of the above OS jobs passed.
+  decide-overall-status:
+    # This job 'needs' all the build jobs to complete before it runs.
+    # It will get their individual outcomes.
+    needs: [build-ubuntu, build-windows, build-macos]
+    runs-on: ubuntu-latest # You can use any runner for this summary job
+    # The 'if: always()' ensures this job runs even if 'build-windows' failed.
+    if: always()
+    steps:
+      - name: Evaluate job outcomes
+        run: |
+          # Get the result (outcome) of each individual job
+          UBUNTU_RESULT="${{ needs.build-ubuntu.result }}"
+          WINDOWS_RESULT="${{ needs.build-windows.result }}"
+          MACOS_RESULT="${{ needs.build-macos.result }}"
+
+          echo "Ubuntu job result: $UBUNTU_RESULT"
+          echo "Windows job result: $WINDOWS_RESULT"
+          echo "macOS job result: $MACOS_RESULT"
+
+          # If ANY of the jobs succeeded, we want the overall workflow to pass.
+          if [ "$UBUNTU_RESULT" == "success" ] || \
+             [ "$WINDOWS_RESULT" == "success" ] || \
+             [ "$MACOS_RESULT" == "success" ]; then
+            echo "At least one OS job passed. Marking overall workflow as success."
+            exit 0 # Exiting with 0 marks the job (and thus the workflow) as success
+          else
+            echo "All OS jobs failed. Marking overall workflow as failure."
+            exit 1 # Exiting with 1 marks the job (and thus the workflow) as failure
+          fi

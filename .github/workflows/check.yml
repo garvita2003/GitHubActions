@@ -1,0 +1,32 @@
+name: Run on Selected OS Only (with include)
+
+on:
+  workflow_dispatch:
+    inputs:
+      selected_os:
+        description: 'Choose the OS to run the job on'
+        required: true
+        default: 'ubuntu-latest'
+        type: choice
+        options:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+jobs:
+  run-job:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: windows-latest
+          - os: macos-latest
+      fail-fast: false
+
+    if: matrix.os == github.event.inputs.selected_os  # ✅ Filter matrix by input
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Show selected OS
+        run: echo "Running on ${{ matrix.os }}"

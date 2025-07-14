@@ -1,0 +1,70 @@
+name: Matrix CI with Continue on Error
+
+on:
+  push:
+    branches:
+      - '**'
+      
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    strategy:
+      # If one matrix job fails, do not fail the entire matrix immediately. Other jobs in the matrix will continue to run.
+      fail-fast: false # Set to 'false' to ensure all matrix jobs run even if one fails.
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        
+    runs-on: ${{ matrix.os }}
+
+    continue-on-error: true # This is crucial: allows the workflow to proceed despite failure.
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Show OS
+        run: |
+          echo "Running on ${{ matrix.os }}"
+          # On Linux/macOS, print the OS name. On Windows, print the OS version.
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            cat /etc/os-release
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            sw_vers
+          fi
+          
+      - name: Run OS-specific Commands
+        run: |
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            echo "--- Linux Specific Commands (with sudo) ---"
+            # Example: Update package lists (requires sudo)
+            sudo apt-get update -y
+            # Example: Install a common utility (requires sudo)
+            sudo apt-get install -y curl
+            # Example: Create a file in a protected directory (requires sudo)
+            echo "Hello from Linux" | sudo tee /opt/test_file.txt
+            sudo cat /opt/test_file.txt
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            echo "--- Windows Specific Commands ---"
+            # Example: Display network configuration
+            ipconfig /all
+            # Example: Create a directory
+            mkdir C:\temp_dir
+            # Example: Write to a file
+            echo "Hello from Windows" > C:\temp_dir\test_file.txt
+            type C:\temp_dir\test_file.txt
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            echo "--- macOS Specific Commands ---"
+            # Example: Display system information
+            sysctl -n machdep.cpu.brand_string
+            # Example: List contents of /usr/local
+            ls -la /usr/local
+            # Example: Create a file
+            echo "Hello from macOS" > ~/test_file.txt
+            cat ~/test_file.txt
+          fi
+
+      - name: All good!
+        run: echo "This job completed successfully (or continued despite errors) on ${{ matrix.os }}!"
