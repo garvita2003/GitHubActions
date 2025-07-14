@@ -12,11 +12,10 @@ jobs:
   run-on-os:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: ${{ fromJson(github.event.inputs.selected_os == 'all' && '["ubuntu-latest", "windows-latest", "macos-latest"]' || format('["{0}"]', github.event.inputs.selected_os)) }}
 
-    runs-on: ${{ github.event.inputs.selected_os }}
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Run job on ${{ matrix.os }}
-        if: ${{ github.event.inputs.selected_os == 'all' || github.event.inputs.selected_os == matrix.os }}
+      - name: Echo OS
         run: echo "Running on ${{ matrix.os }}"
