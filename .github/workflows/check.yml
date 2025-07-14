@@ -1,72 +1,21 @@
-name: Run All or Selected OS
+name: Manual Matrix Workflow
 
 on:
   workflow_dispatch:
     inputs:
-      selected_os:
-        description: 'Choose the OS to run the job on (leave blank or choose "All" for all OSes)'
-        required: false # <--- IMPORTANT: Make it optional
-        default: 'all'  # <--- IMPORTANT: Set a default to 'all' or similar
-        type: choice
-        options:
-          - 'all'          # <--- New option to indicate running on all OSes
-          - 'ubuntu-latest'
-          - 'windows-latest'
-          - 'macos-latest'
+      target_os:
+        description: 'Target OS to run the job on (e.g., ubuntu-latest, windows-latest, macos-latest)'
+        required: false
+        default: ''
 
 jobs:
-  run-job:
-    # 1. Strategy Matrix
+  run-on-os:
+    runs-on: ${{ matrix.os }}
+    if: ${{ github.event.inputs.target_os == '' || matrix.os == github.event.inputs.target_os }}
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            # Add specific commands/variables for Ubuntu here
-            build_cmd: "echo 'Building Ubuntu App...'"
-            test_cmd: "echo 'Testing Ubuntu App...'"
-
-          - os: windows-latest
-            # Add specific commands/variables for Windows here
-            build_cmd: "echo 'Building Windows App...'"
-            test_cmd: "echo 'Testing Windows App...'"
-
-          - os: macos-latest
-            # Add specific commands/variables for macOS here
-            build_cmd: "echo 'Building macOS App...'"
-            test_cmd: "echo 'Testing macOS App...'"
-      fail-fast: false # Set to true if you want the build to fail immediately on any matrix failure
-
-    # 2. Conditional Execution (based on input)
-    # This condition determines whether a specific matrix job should run.
-    if: |
-      github.event.inputs.selected_os == 'all' ||  matrix.os == github.event.inputs.selected_os
-
-    runs-on: ${{ matrix.os }} # The job runs on the OS defined by the matrix entry
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Show selected OS
-        run: echo "Currently running on ${{ matrix.os }}"
-
-      # Example steps that use matrix variables for OS-specific commands
-      - name: Run Build Command
-        run: ${{ matrix.build_cmd }}
-
-      - name: Run Test Command
-        run: ${{ matrix.test_cmd }}
-
-      # Add more steps as needed for each OS
-      # For example, you might have specific setup steps or dependency installations
-      # - name: Setup Node.js on Ubuntu
-      #   if: matrix.os == 'ubuntu-latest'
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: '16'
-
-      # - name: Setup MSBuild on Windows
-      #   if: matrix.os == 'windows-latest'
-      #   run: |
-      #     echo "Setting up MSBuild for Windows..."
-      #     # Add actual MSBuild setup commands if necessary
+      - name: Print OS
+        run: echo "Running on ${{ matrix.os }}"
