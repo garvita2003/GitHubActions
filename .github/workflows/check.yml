@@ -1,10 +1,10 @@
-name: Run on Selected OS 
+name: Run on Selected OS Only
 
 on:
   workflow_dispatch:
     inputs:
-      box-agent:
-        description: 'Select the OS to run the workflow on'
+      selected_os:
+        description: 'Choose the OS to run the job on'
         required: true
         default: 'ubuntu-latest'
         type: choice
@@ -14,11 +14,11 @@ on:
           - macos-latest
 
 jobs:
-  run-on-selected-os:
+  run-job:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [${{ github.event.inputs.box-agent }}]  # Only run the selected OS
+        os: [${{ github.event.inputs.selected_os }}]  # Only run the selected OS
       fail-fast: false
 
     steps:
