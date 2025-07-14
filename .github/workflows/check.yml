@@ -14,15 +14,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ github.event.inputs.selected_os }}
 
     steps:
-      - name: Check if this OS should run
-        if: ${{ github.event.inputs.selected_os != 'all' && github.event.inputs.selected_os != matrix.os }}
-        run: |
-          echo "Skipping this OS: ${{ matrix.os }}"
-          exit 0
-
       - name: Run job on ${{ matrix.os }}
         if: ${{ github.event.inputs.selected_os == 'all' || github.event.inputs.selected_os == matrix.os }}
         run: echo "Running on ${{ matrix.os }}"
