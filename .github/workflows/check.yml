@@ -39,8 +39,7 @@ jobs:
     # 2. Conditional Execution (based on input)
     # This condition determines whether a specific matrix job should run.
     if: |
-      github.event.inputs.selected_os == 'all' ||  # If 'all' is selected, run this job
-      matrix.os == github.event.inputs.selected_os # Else, run only if matrix.os matches input
+      github.event.inputs.selected_os == 'all' ||  matrix.os == github.event.inputs.selected_os
 
     runs-on: ${{ matrix.os }} # The job runs on the OS defined by the matrix entry
 
