@@ -7,6 +7,12 @@ on:
         description: 'Target OS (ubuntu-latest, windows-latest, macos-latest, or all)'
         required: false
         default: 'all'
+        type: choice
+        options:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+          - all
 
 jobs:
   run-on-os:
