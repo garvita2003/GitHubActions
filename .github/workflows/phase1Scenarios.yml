@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false # Ensure all matrix jobs for Job B are created, even if one condition leads to skip
       matrix:
-        os_runner: [ubuntu-latest, macos-latest] # Re-defines the matrix for Job B.
+        os_runner: [macos-latest] # Re-defines the matrix for Job B.
     
     steps:
       - name: Check Job-A status and run Job-B logic
