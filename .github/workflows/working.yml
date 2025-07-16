@@ -1,5 +1,3 @@
-# .github/workflows/two-jobs-step-conditional.yml
-
 name: Two Jobs with Step-Level Conditional
 
 on:
@@ -23,14 +21,14 @@ jobs:
       - name: Run Job-A logic
         id: run_job_a
         run: |
-          echo "Running Job-A on ${{ matrix.os_runner }}..."
+          # echo "Running Job-A on ${{ matrix.os_runner }}..."
           # Simulate failure for ubuntu-latest for testing
-          # if [ "${{ matrix.os_runner }}" == "ubuntu-latest" ]; then
-          #   echo "Simulating failure for ubuntu-latest."
-          #   exit 1
-          # fi
-          echo "Current status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "status=${{ job.status }}" >> $GITHUB_OUTPUT # Output current job status
+          if [ "${{ matrix.os_runner }}" == "ubuntu-latest" ]; then
+            echo "Simulating failure for ubuntu-latest."
+            exit 1
+          fi
+          # echo "Current status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          # echo "status=${{ job.status }}" >> $GITHUB_OUTPUT # Output current job status
 
   # Job B: Runs on matrix, but conditional logic is within its steps
   job-b:
@@ -40,10 +38,8 @@ jobs:
     strategy:
       matrix:
         os_runner: [ubuntu-latest, windows-latest]
-    # No job-level 'if' using matrix.os_runner here
     steps:
       - name: Check Job-A status and run Job-B logic
-        # This 'if' is at the step level, where matrix.os_runner is available
         if: |
           (matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
           (matrix.os_runner == 'windows-latest' && needs.job-a.outputs.status_windows == 'success')
