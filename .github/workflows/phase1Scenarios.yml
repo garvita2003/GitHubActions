@@ -1,6 +1,6 @@
-# .github/workflows/two-jobs-step-conditional-final.yml
+# .github/workflows/two-jobs-final-fix.yml
 
-name: Two Jobs with Step-Level Conditional (Final Version)
+name: Two Jobs with Step-Level Conditional (Final Fix)
 
 on:
   push:
@@ -41,8 +41,8 @@ jobs:
           echo "Current status for ${{ matrix.os_runner }}: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "current_status=${{ job.status }}" >> $GITHUB_OUTPUT # Output current job status (success/failure)
 
-  # Job B: Runs on matrix, but conditional logic is handled within its steps.
-  # This is the only way to meet "exactly two jobs" while having per-runner conditions.
+  # Job B: Runs on matrix, with conditional logic handled within its steps.
+  # Using if: always() to ensure it's not skipped due to upstream failures.
   job-b:
     name: Job-B on ${{ matrix.os_runner }}
     needs: job-a # Job B depends on all instances of Job A completing.
@@ -52,9 +52,11 @@ jobs:
       matrix:
         os_runner: [ubuntu-latest, macos-latest] # Re-defines the matrix for Job B.
     
-    # IMPORTANT: There is NO job-level 'if' here.
-    # Placing it here with 'matrix.os_runner' causes the "Unrecognized named-value: 'matrix'" error.
-    # The conditional execution logic is managed by 'if' statements on the steps below.
+    # *** CRUCIAL FIX ***
+    # This 'if: always()' ensures that 'job-b' will always run its matrix,
+    # even if one of the 'needs' jobs (job-a) had a failure in some of its matrix instances.
+    if: always() 
+    
     steps:
       - name: Check Job-A status and run Job-B logic
         # This step will only execute if Job-A on the *same* OS runner succeeded.
