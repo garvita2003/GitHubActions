@@ -1,0 +1,77 @@
+# .github/workflows/failure-scenario-pipeline.yml
+
+name: Two Jobs with Step-Level Conditional (Failure Scenario)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual triggering for easy testing
+
+jobs:
+  # Job A: Runs Job-A on both Ubuntu and Windows.
+  # We'll make the Ubuntu instance fail.
+  job-a:
+    name: Job-A on ${{ matrix.os_runner }}
+    runs-on: ${{ matrix.os_runner }} # Dynamically selects the OS runner
+    strategy:
+      matrix:
+        os_runner: [ubuntu-latest, windows-latest] # Our two runners
+    outputs:
+      # These outputs capture the final status of each matrix run of Job-A.
+      status_ubuntu: ${{ steps.run_job_a.outputs.current_status }}
+      status_windows: ${{ steps.run_job_a.outputs.current_status }}
+    steps:
+      - name: Run Job-A logic
+        id: run_job_a # ID to capture the current job's status
+        run: |
+          echo "Running Job-A logic on ${{ matrix.os_runner }}..."
+          
+          # --- SIMULATE FAILURE FOR UBUNTU-LATEST ---
+          # This 'if' block causes Job-A on ubuntu-latest to fail.
+          if [ "${{ matrix.os_runner }}" == "ubuntu-latest" ]; then
+            echo "Simulating failure for Job-A on ubuntu-latest."
+            exit 1 # A non-zero exit code indicates failure
+          fi
+          # ----------------------------------------
+          
+          echo "Job-A on ${{ matrix.os_runner }} completed successfully."
+          echo "Current status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY # Adds to run summary
+          echo "current_status=${{ job.status }}" >> $GITHUB_OUTPUT # Output current job status
+
+  # Job B: Runs on matrix, but conditional logic is within its steps.
+  # This demonstrates how Job B for ubuntu-latest will skip,
+  # while Job B for windows-latest will proceed.
+  job-b:
+    name: Job-B on ${{ matrix.os_runner }}
+    needs: job-a # Depends on Job-A completing (all its matrix runs)
+    runs-on: ${{ matrix.os_runner }} # Uses the OS runner directly from its own matrix
+    strategy:
+      matrix:
+        os_runner: [ubuntu-latest, windows-latest] # Re-define the matrix for job-b
+    
+    # No job-level 'if' here, as that causes the 'matrix' context error.
+    # The conditional logic is handled within the steps below.
+    steps:
+      - name: Check Job-A status and run Job-B logic
+        # This 'if' is at the step level, where matrix.os_runner is correctly available.
+        # It checks if Job-A on the *same* runner succeeded.
+        if: |
+          (matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
+          (matrix.os_runner == 'windows-latest' && needs.job-a.outputs.status_windows == 'success')
+        run: |
+          echo "--------------------------------------------------------"
+          echo "Executing Job-B logic on ${{ matrix.os_runner }}!"
+          echo "Job-A on this runner succeeded. Proceeding with Job-B tasks."
+          echo "--------------------------------------------------------"
+          # Add your actual Job-B commands here
+          
+      - name: Indicate skip (if condition not met)
+        # This step runs only if the previous step's 'if' condition was FALSE.
+        if: |
+          !((matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
+            (matrix.os_runner == 'windows-latest' && needs.job-a.outputs.status_windows == 'success'))
+        run: |
+          echo "--------------------------------------------------------"
+          echo "Job-B on ${{ matrix.os_runner }} skipped due to Job-A failure on the same runner."
+          echo "--------------------------------------------------------"
