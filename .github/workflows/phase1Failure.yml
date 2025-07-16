@@ -17,12 +17,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os_runner: [ubuntu-latest, windows-latest]
+        os_runner: [ubuntu-latest, macos-latest]
     outputs:
       # These outputs capture the final status of each matrix run of Job-A.
       # They are crucial for Job-B's conditional logic.
       status_ubuntu: ${{ steps.run_job_a.outputs.status }}
-      status_windows: ${{ steps.run_job_a.outputs.status }}
+      status_macos: ${{ steps.run_job_a.outputs.status }}
     steps:
       - name: Run Job-A logic
         id: run_job_a # ID to capture the current job's status
@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os_runner: [ubuntu-latest, windows-latest] # Re-defines the matrix for Job B.
+        os_runner: [ubuntu-latest, macos-latest] # Re-defines the matrix for Job B.
     
     # No job-level 'if' is used here, as that would cause the 'matrix' context error.
     # The conditional execution logic is managed by the 'if' statements on the steps below.
@@ -61,7 +61,7 @@ jobs:
         # - If windows-latest Job A succeeded, this step will run for windows-latest Job B.
         if: |
           (matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
-          (matrix.os_runner == 'windows-latest' && needs.job-a.outputs.status_windows == 'success')
+          (matrix.os_runner == 'macos-latest' && needs.job-a.outputs.status_macos == 'success')
         run: |
           echo "--------------------------------------------------------"
           echo "SUCCESS: Running Job-B logic on ${{ matrix.os_runner }}!"
@@ -74,7 +74,7 @@ jobs:
         # This clearly shows when Job B's logic was intentionally skipped.
         if: |
           !((matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
-            (matrix.os_runner == 'windows-latest' && needs.job-a.outputs.status_windows == 'success'))
+            (matrix.os_runner == 'macos-latest' && needs.job-a.outputs.status_macos == 'success'))
         run: |
           echo "--------------------------------------------------------"
           echo "SKIPPED: Job-B on ${{ matrix.os_runner }} was skipped."
