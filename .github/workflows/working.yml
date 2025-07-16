@@ -1,6 +1,6 @@
-# .github/workflows/strictly-two-jobs-conditional.yml
+# .github/workflows/two-jobs-step-conditional.yml
 
-name: Strictly Two Jobs Pipeline
+name: Two Jobs with Step-Level Conditional
 
 on:
   push:
@@ -9,53 +9,49 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Job-A: Runs on matrix, collects individual runner results, and *aggregates them*.
+  # Job A: Runs Job-A on both Ubuntu and Windows
   job-a:
     name: Job-A on ${{ matrix.os_runner }}
-    runs-on: ${{ matrix.os_runner }} # Use the OS runner directly
+    runs-on: ${{ matrix.os_runner }}
     strategy:
       matrix:
-        os_runner: [ubuntu-latest, windows-latest] # Our two runners
+        os_runner: [ubuntu-latest, windows-latest]
     outputs:
-      aggregated_statuses: ${{ steps.aggregate_statuses.outputs.statuses_json }}
-      ubuntu_latest_status: ${{ steps.set_status_output.outputs.ubuntu_status }}
-      windows_latest_status: ${{ steps.set_status_output.outputs.windows_status }}
-    
+      status_ubuntu: ${{ steps.run_job_a.outputs.status }}
+      status_windows: ${{ steps.run_job_a.outputs.status }}
     steps:
       - name: Run Job-A logic
+        id: run_job_a
         run: |
-          echo "Running Job-A logic on ${{ matrix.os_runner }}..."
-          echo "Job-A on ${{ matrix.os_runner }} completed with status: ${{ job.status }}"
-        
-      - name: Set Specific Status Output for Aggregation
-        if: always() # Ensure this always runs to capture status, even if previous step failed
-        id: set_status_output
-        run: |
-          if [ "${{ matrix.os_runner }}" == "ubuntu-latest" ]; then
-            echo "ubuntu_status=${{ job.status }}" >> $GITHUB_OUTPUT
-          elif [ "${{ matrix.os_runner }}" == "windows-latest" ]; then
-            echo "windows_status=${{ job.status }}" >> $GITHUB_OUTPUT
-          fi
+          echo "Running Job-A on ${{ matrix.os_runner }}..."
+          # Simulate failure for ubuntu-latest for testing
+          # if [ "${{ matrix.os_runner }}" == "ubuntu-latest" ]; then
+          #   echo "Simulating failure for ubuntu-latest."
+          #   exit 1
+          # fi
+          echo "Current status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "status=${{ job.status }}" >> $GITHUB_OUTPUT # Output current job status
 
-
-  # Job-B: Runs on matrix, depends on Job-A's per-runner success.
+  # Job B: Runs on matrix, but conditional logic is within its steps
   job-b:
     name: Job-B on ${{ matrix.os_runner }}
-    needs: job-a # Depends on Job-A completing (all matrix runs)
-    runs-on: ${{ matrix.os_runner }} # Uses the OS runner directly from its own matrix
+    needs: job-a # Depends on Job-A completing all its matrix runs
+    runs-on: ${{ matrix.os_runner }}
     strategy:
       matrix:
-        os_runner: [ubuntu-latest, windows-latest] # Re-define the matrix for job-b
-    
-    # This is the complex IF condition that references outputs from job-a directly.
-    # It works because 'needs.job-a.outputs.ubuntu_latest_status' and
-    # 'needs.job-a.outputs.windows_latest_status' are specific, non-matrix outputs
-    # from job-a, and matrix.os_runner is from job-b's *own* matrix expansion.
-    if: |
-      (matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.ubuntu_latest_status == 'success') ||
-      (matrix.os_runner == 'windows-latest' && needs.job-a.outputs.windows_latest_status == 'success')
-      
+        os_runner: [ubuntu-latest, windows-latest]
+    # No job-level 'if' using matrix.os_runner here
     steps:
-      - name: Execute Job-B logic
+      - name: Check Job-A status and run Job-B logic
+        # This 'if' is at the step level, where matrix.os_runner is available
+        if: |
+          (matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
+          (matrix.os_runner == 'windows-latest' && needs.job-a.outputs.status_windows == 'success')
         run: |
           echo "Running Job-B on ${{ matrix.os_runner }} because Job-A on ${{ matrix.os_runner }} succeeded."
+      - name: Indicate skip
+        if: |
+          !((matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
+            (matrix.os_runner == 'windows-latest' && needs.job-a.outputs.status_windows == 'success'))
+        run: |
+          echo "Job-B on ${{ matrix.os_runner }} skipped due to Job-A failure on the same runner."
