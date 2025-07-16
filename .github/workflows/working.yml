@@ -14,11 +14,11 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        runner: [runner-a, runner-b] # Define our runners
+        runner: [ubuntu-latest, windows-latest] # Define our runners
     outputs:
       # Capture the success status for each specific runner
-      runner-a-status: ${{ steps.set-result.outputs.runner-a-status }}
-      runner-b-status: ${{ steps.set-result.outputs.runner-b-status }}
+      runner-a-status: ${{ steps.set-result.outputs.ubuntu-latest-status }}
+      runner-b-status: ${{ steps.set-result.outputs., windows-latest-status }}
     steps:
       - name: Run Job-A logic
         run: |
@@ -43,7 +43,7 @@ jobs:
       matrix:
         runner: [runner-a, runner-b] # Re-define the runners for Job-B's matrix
     if: |
-      (matrix.runner == 'runner-a' && needs.job-a.outputs.runner-a-status == 'success') ||
-      (matrix.runner == 'runner-b' && needs.job-a.outputs.runner-b-status == 'success')
+      (matrix.runner == 'ubuntu-latest' && needs.job-a.outputs.runner-a-status == 'success') ||
+      (matrix.runner == 'windows-latest' && needs.job-a.outputs.runner-b-status == 'success')
     steps:
       - run: echo "Running Job-B on ${{ matrix.runner }} because Job-A succeeded on the same runner"
