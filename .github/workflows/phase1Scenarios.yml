@@ -15,7 +15,6 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - name: Simulate Job-A logic
-        id: job_a_step
         run: |
           echo "Running Job-A on ${{ matrix.os }}..."
           if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
@@ -50,13 +49,19 @@ jobs:
           name: status-${{ matrix.os }}
           path: ./status
 
-      - name: Read status and conditionally run Job-B
+      - name: Read status
+        id: read_status
         run: |
           STATUS=$(cat ./status/status-${{ matrix.os }}.txt)
-          echo "Job-A status for ${{ matrix.os }}: $STATUS"
-          if [ "$STATUS" == "success" ]; then
-            echo "Running Job-B logic on ${{ matrix.os }}"
-            # Add your actual Job-B logic here
-          else
-            echo "Skipping Job-B on ${{ matrix.os }} because Job-A failed"
-          fi
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+
+      - name: Run Job-B logic if Job-A succeeded
+        if: steps.read_status.outputs.status == 'success'
+        run: |
+          echo "✅ Job-A succeeded on ${{ matrix.os }}. Running Job-B logic..."
+          # Add your actual Job-B logic here
+
+      - name: Skip Job-B logic if Job-A failed
+        if: steps.read_status.outputs.status != 'success'
+        run: |
+          echo "⚠️ Skipping Job-B on ${{ matrix.os }} because Job-A failed."
