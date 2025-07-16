@@ -37,6 +37,7 @@ jobs:
     needs: job-a # Depends on Job-A completing all its matrix runs
     runs-on: ${{ matrix.os_runner }}
     strategy:
+      fail-fast: false
       matrix:
         os_runner: [ubuntu-latest, windows-latest]
     steps:
