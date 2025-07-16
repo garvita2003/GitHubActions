@@ -55,7 +55,8 @@ jobs:
     # *** CRUCIAL FIX ***
     # This 'if: always()' ensures that 'job-b' will always run its matrix,
     # even if one of the 'needs' jobs (job-a) had a failure in some of its matrix instances.
-    if: always() 
+    if: ((matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
+            (matrix.os_runner == 'macos-latest' && needs.job-a.outputs.status_macos == 'success'))
     
     steps:
       - name: Check Job-A status and run Job-B logic
