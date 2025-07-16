@@ -1,36 +1,72 @@
-name: Parallel
- 
-on: 
- workflow_dispatch:
- 
+# .github/workflows/conditional-parallel-pipeline.yml (Example for GitHub Actions)
+
+name: Conditional Parallel Jobs
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
 jobs:
-  job-a:
-    name: Job-A on ${{ matrix.runner }}
-    runs-on: [self-hosted, ${{ matrix.runner }}]
+  # Define the strategy matrix for runners
+  run-jobs:
+    runs-on: ubuntu-latest # This runner will orchestrate the matrix jobs
     strategy:
       matrix:
-        runner: [runner-a, runner-b]
+        runner: [RunnerA, RunnerB] # Our custom runner names for logical grouping
+
     outputs:
-      runner-a-status: ${{ steps.set-result.outputs.runner-a }}
-      runner-b-status: ${{ steps.set-result.outputs.runner-b }}
+      job_a_status_RunnerA: ${{ steps.job_a_runner_a_status.outputs.status }}
+      job_a_status_RunnerB: ${{ steps.job_a_runner_b_status.outputs.status }}
+
     steps:
-      - name: Run Job-A logic
-        run: echo "Running Job-A on ${{ matrix.runner }}"
- 
-      - name: Set result
-        id: set-result
+      # Job-A for RunnerA
+      - name: Run Job-A on RunnerA
+        id: job_a_runner_a
+        if: matrix.runner == 'RunnerA'
         run: |
-          echo "${{ matrix.runner }}=success" >> $GITHUB_OUTPUT
- 
-  job-b:
-    name: Job-B on ${{ matrix.runner }}
-    needs: job-a
-    runs-on: [self-hosted, ${{ matrix.runner }}]
-    strategy:
-      matrix:
-        runner: [runner-a, runner-b]
-    if: |
-      (matrix.runner == 'runner-a' && needs.job-a.outputs.runner-a-status == 'success') ||
-      (matrix.runner == 'runner-b' && needs.job-a.outputs.runner-b-status == 'success')
+          echo "Running Job-A on RunnerA..."
+          # Simulate success
+          exit 0
+        # If this step fails, it will mark the job as failed for this matrix combination
+      - name: Set Job-A RunnerA Status
+        if: matrix.runner == 'RunnerA'
+        run: echo "status=${{ job.status }}" >> $GITHUB_OUTPUT
+
+      # Job-A for RunnerB
+      - name: Run Job-A on RunnerB
+        id: job_a_runner_b
+        if: matrix.runner == 'RunnerB'
+        run: |
+          echo "Running Job-A on RunnerB..."
+          # Simulate success
+          exit 0
+        # If this step fails, it will mark the job as failed for this matrix combination
+      - name: Set Job-A RunnerB Status
+        if: matrix.runner == 'RunnerB'
+        run: echo "status=${{ job.status }}" >> $GITHUB_OUTPUT
+
+  # Job-B for RunnerA (depends on Job-A RunnerA)
+  job-b-runner-a:
+    runs-on: ubuntu-latest # Or your specific 'RunnerA' machine
+    needs: run-jobs # This ensures run-jobs completes before this job starts
+    if: needs.run-jobs.outputs.job_a_status_RunnerA == 'success'
     steps:
-      - run: echo "Running Job-B on ${{ matrix.runner }} because Job-A succeeded on the same runner"
+      - name: Run Job-B on RunnerA
+        run: |
+          echo "Running Job-B on RunnerA because Job-A on RunnerA succeeded."
+          # Your commands for Job-B on RunnerA
+          exit 0
+
+  # Job-B for RunnerB (depends on Job-A RunnerB)
+  job-b-runner-b:
+    runs-on: ubuntu-latest # Or your specific 'RunnerB' machine
+    needs: run-jobs # This ensures run-jobs completes before this job starts
+    if: needs.run-jobs.outputs.job_a_status_RunnerB == 'success'
+    steps:
+      - name: Run Job-B on RunnerB
+        run: |
+          echo "Running Job-B on RunnerB because Job-A on RunnerB succeeded."
+          # Your commands for Job-B on RunnerB
+          exit 0
