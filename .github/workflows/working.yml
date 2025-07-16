@@ -12,6 +12,7 @@ jobs:
     name: Job-A on ${{ matrix.os_runner }}
     runs-on: ${{ matrix.os_runner }}
     strategy:
+      fail-fast: false
       matrix:
         os_runner: [ubuntu-latest, windows-latest]
     outputs:
