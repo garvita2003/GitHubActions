@@ -37,7 +37,7 @@ jobs:
       matrix:
         runner: [ubuntu-latest, windows-latest] # Re-define the runners for Job-B's matrix
     if: |
-      (matrix.runner == 'ubuntu-latest' && needs.job-a.outputs.runner-a-status == 'success') ||
-      (matrix.runner == 'windows-latest' && needs.job-a.outputs.runner-b-status == 'success')
+      (matrix.runner == "ubuntu-latest" && needs.job-a.outputs.runner-a-status == 'success') ||
+      (matrix.runner == "windows-latest" && needs.job-a.outputs.runner-b-status == 'success')
     steps:
       - run: echo "Running Job-B on ${{ matrix.runner }} because Job-A succeeded on the same runner"
