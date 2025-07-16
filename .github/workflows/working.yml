@@ -1,6 +1,6 @@
 # .github/workflows/streamlined-conditional-pipeline.yml
 
-name: Matrix Runner Workflow
+name: Computation
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 jobs:
   job-a:
     name: Job-A on ${{ matrix.runner }}
-    runs-on: [self-hosted, ${{ matrix.runner }}] # Uses self-hosted runners with specific labels
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         runner: [runner-a, runner-b] # Define our runners
@@ -38,7 +38,7 @@ jobs:
   job-b:
     name: Job-B on ${{ matrix.runner }}
     needs: job-a # Ensure Job-A completes for all matrix combinations before Job-B starts
-    runs-on: [self-hosted, ${{ matrix.runner }}] # Uses self-hosted runners with specific labels
+    runs-on: ${{ matrix.runner }} # Uses self-hosted runners with specific labels
     strategy:
       matrix:
         runner: [runner-a, runner-b] # Re-define the runners for Job-B's matrix
