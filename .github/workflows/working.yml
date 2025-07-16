@@ -18,21 +18,15 @@ jobs:
     outputs:
       # Capture the success status for each specific runner
       runner-a-status: ${{ steps.set-result.outputs.ubuntu-latest-status }}
-      runner-b-status: ${{ steps.set-result.outputs., windows-latest-status }}
+      runner-b-status: ${{ steps.set-result.outputs.windows-latest-status }}
     steps:
       - name: Run Job-A logic
         run: |
           echo "Running Job-A on ${{ matrix.runner }}"
-          # Simulate Job-A's work. A non-zero exit code here would fail the job.
-          # For demonstration, we'll always succeed.
-          # To simulate failure for a specific runner:
-          # if [ "${{ matrix.runner }}" == "runner-a" ]; then exit 1; fi
 
       - name: Set result for ${{ matrix.runner }}
         id: set-result
         run: |
-          # Dynamically set an output based on the runner, indicating success or failure.
-          # job.status will be 'success', 'failure', 'cancelled', or 'skipped'.
           echo "${{ matrix.runner }}-status=${{ job.status }}" >> $GITHUB_OUTPUT
 
   job-b:
@@ -41,7 +35,7 @@ jobs:
     runs-on: ${{ matrix.runner }} # Uses self-hosted runners with specific labels
     strategy:
       matrix:
-        runner: [runner-a, runner-b] # Re-define the runners for Job-B's matrix
+        runner: [ubuntu-latest, windows-latest] # Re-define the runners for Job-B's matrix
     if: |
       (matrix.runner == 'ubuntu-latest' && needs.job-a.outputs.runner-a-status == 'success') ||
       (matrix.runner == 'windows-latest' && needs.job-a.outputs.runner-b-status == 'success')
