@@ -49,8 +49,7 @@ jobs:
     steps:
       - name: Check Job-A status and run Job-B logic
         if: |
-          (matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
-          (matrix.os_runner == 'macos-latest' && needs.job-a.outputs.status_macos == 'success')
+          (needs.job-a.outputs.status_ubuntu == 'success') || (needs.job-a.outputs.status_macos == 'success')
         run: |
           echo "--------------------------------------------------------"
           echo "SUCCESS: Running Job-B logic on ${{ matrix.os_runner }}!"
