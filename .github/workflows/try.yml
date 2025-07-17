@@ -1,43 +1,40 @@
 name: Matrix Runner Workflow
- 
+
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch: 
- 
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
 jobs:
-  job-a:
-    name: Job-A on ${{ matrix.runner }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        runner: [ubuntu-latest, macos-latest]
-    outputs:
-      ubuntu-latest-status: ${{ steps.set-result.outputs.ubuntu-latest }}
-      macos-latest-status: ${{ steps.set-result.outputs.macos-latest }}
-    steps:
-      - name: Run Job-A logic
-        run: |
-          echo "Running Job-A on ${{ matrix.runner }}"
-          # Simulate success (you can replace this with your actual logic)
-          echo "I am successful"
- 
-      - name: Set result
-        id: set-result
-        run: |
-          echo "${{ matrix.runner }}=success" >> $GITHUB_OUTPUT
- 
-  job-b:
-    name: Job-B on ${{ matrix.runner }}
-    needs: job-a
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        runner: [ubuntu-latest, macos-latest]
-    steps:
-      - name: Check previous job status and run
-        if: |
-          (matrix.runner == 'ubuntu-latest' && needs.job-a.outputs.ubuntu-latest-status == 'success') ||
-          (matrix.runner == 'macos-latest' && needs.job-a.outputs.macos-latest-status == 'success')
-        run: echo "Running Job-B on ${{ matrix.runner }} because Job-A succeeded on the same runner"
+  job-a:
+    name: Job-A on ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, macos-latest]
+    outputs:
+      ubuntu-latest-status: ${{ steps.set-result.outputs.ubuntu-latest }}
+      macos-latest-status: ${{ steps.set-result.outputs.macos-latest }}
+    steps:
+      - name: Run Job-A logic
+        run: echo "Running Job-A on ${{ matrix.runner }}"
+
+      - name: Set result
+        id: set-result
+        run: |
+          echo "${{ matrix.runner }}=success" >> $GITHUB_OUTPUT
+
+  job-b:
+    name: Job-B on ${{ matrix.runner }}
+    needs: job-a
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Check previous job status and run
+        if: |
+          (matrix.runner == 'ubuntu-latest' && needs.job-a.outputs.ubuntu-latest-status == 'success') ||
+          (matrix.runner == 'macos-latest' && needs.job-a.outputs.macos-latest-status == 'success')
+        run: echo "Running Job-B on ${{ matrix.runner }} because Job-A succeeded on the same runner"
