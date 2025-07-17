@@ -42,25 +42,14 @@ jobs:
       matrix:
         os_runner: [ubuntu-latest, macos-latest] 
    
-    if: always() 
+    if: |
+      (matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
+      (matrix.os_runner == 'macos-latest' && needs.job-a.outputs.status_macos == 'success')
     
     steps:
       - name: Check Job-A status and run Job-B logic
-        if: |
-          (matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
-          (matrix.os_runner == 'macos-latest' && needs.job-a.outputs.status_macos == 'success')
         run: |
           echo "--------------------------------------------------------"
           echo "SUCCESS: Running Job-B logic on ${{ matrix.os_runner }}!"
           echo "Job-A on this runner succeeded. Proceeding with Job-B tasks."
-          echo "--------------------------------------------------------"
-          
-      - name: Indicate skip (if condition not met)
-        if: |
-          !((matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
-            (matrix.os_runner == 'macos-latest' && needs.job-a.outputs.status_macos == 'success'))
-        run: |
-          echo "--------------------------------------------------------"
-          echo "SKIPPED: Job-B on ${{ matrix.os_runner }} was skipped."
-          echo "Reason: Job-A on the same runner did NOT succeed."
           echo "--------------------------------------------------------"
