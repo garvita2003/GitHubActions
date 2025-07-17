@@ -1,6 +1,10 @@
 name: Matrix Runner Workflow
  
-on: [push]
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: 
  
 jobs:
   job-a:
@@ -8,10 +12,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        runner: [runner-a, runner-b]
+        runner: [ubuntu-latest, macos-latest]
     outputs:
-      runner-a-status: ${{ steps.set-result.outputs.runner-a }}
-      runner-b-status: ${{ steps.set-result.outputs.runner-b }}
+      ubuntu-latest-status: ${{ steps.set-result.outputs.ubuntu-latest }}
+      macos-latest-status: ${{ steps.set-result.outputs.macos-latest }}
     steps:
       - name: Run Job-A logic
         run: echo "Running Job-A on ${{ matrix.runner }}"
@@ -27,10 +31,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        runner: [runner-a, runner-b]
+        runner: [ubuntu-latest, macos-latest]
     if: |
-      (matrix.runner == 'runner-a' && needs.job-a.outputs.runner-a-status == 'success') ||
-      (matrix.runner == 'runner-b' && needs.job-a.outputs.runner-b-status == 'success')
+      (matrix.runner == 'ubuntu-latest' && needs.job-a.outputs.ubuntu-latest-status == 'success') ||
+      (matrix.runner == 'macos-latest' && needs.job-a.outputs.macos-latest-status == 'success')
     steps:
       - run: echo "Running Job-B on ${{ matrix.runner }} because Job-A succeeded on the same runner"
  
