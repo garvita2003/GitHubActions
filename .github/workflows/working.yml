@@ -47,9 +47,9 @@ jobs:
       matrix:
         include:
           - os_runner: ubuntu-latest
-            condition: ${{ needs.job-a.outputs.ubuntu_status == 'success' }}
+            condition: 'false'  # Simulate failure from Job A
           - os_runner: macos-latest
-            condition: ${{ needs.job-a.outputs.macos_status == 'success' }}
+            condition: 'true'   # Simulate success from Job A
     env:
       condition: ${{ matrix.condition }}
     if: env.condition == 'true'
