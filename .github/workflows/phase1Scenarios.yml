@@ -30,7 +30,7 @@ jobs:
           echo "Job-A on ${{ matrix.os_runner }} completed successfully."
           echo "Current status for ${{ matrix.os_runner }}: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "status=${{ job.status }}" >> $GITHUB_OUTPUT # Output current job status (success/failure)
-
+        continue-on-error: true
   # Job B: Runs on matrix, but conditional logic is handled within its steps.
   # This demonstrates how the Job B instance for ubuntu-latest will be affected.
   job-b:
