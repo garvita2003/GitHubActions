@@ -50,7 +50,9 @@ jobs:
             condition: ${{ needs.job-a.outputs.ubuntu_status == 'success' }}
           - os_runner: macos-latest
             condition: ${{ needs.job-a.outputs.macos_status == 'success' }}
-    if: ${{ matrix.condition }}
+    env:
+      condition: ${{ matrix.condition }}
+    if: env.condition == 'true'
     steps:
       - name: Run Job-B logic
         run: |
