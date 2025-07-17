@@ -33,8 +33,8 @@ jobs:
       matrix:
         runner: [ubuntu-latest, macos-latest]
     if: |
-       (matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
-       (matrix.os_runner == 'macos-latest' && needs.job-a.outputs.status_macos == 'success')
+       (matrix.runner == 'ubuntu-latest' && needs.job-a.outputs.ubuntu-latest-status == 'success') ||
+       (matrix.runner == 'macos-latest' && needs.job-a.outputs.macos-latest-status == 'success')
     steps:
       - run: echo "Running Job-B on ${{ matrix.runner }} because Job-A succeeded on the same runner"
  
