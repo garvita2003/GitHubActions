@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   job-a:
@@ -53,4 +53,8 @@ jobs:
     if: ${{ matrix.condition }}
     steps:
       - name: Run Job-B logic
-        run: echo "Running Job-B on ${{ matrix.os_runner }} because Job-A succeeded."
+        run: |
+          echo "--------------------------------------------------------"
+          echo "SUCCESS: Running Job-B logic on ${{ matrix.os_runner }}!"
+          echo "Job-A on this runner succeeded. Proceeding with Job-B tasks."
+          echo "--------------------------------------------------------"
