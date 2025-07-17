@@ -38,25 +38,20 @@ jobs:
             echo "status=failure" >> $GITHUB_OUTPUT
           fi
 
-  job-b:
-    name: Job-B on ${{ matrix.os_runner }}
+  job-b-ubuntu:
+    name: Job-B on ubuntu-latest
     needs: job-a
-    runs-on: ${{ matrix.os_runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os_runner: ubuntu-latest
-            condition: 'false'  # Simulate failure from Job A
-          - os_runner: macos-latest
-            condition: 'true'   # Simulate success from Job A
-    env:
-      condition: ${{ matrix.condition }}
-    if: env.condition == 'true'
+    runs-on: ubuntu-latest
+    if: ${{ needs.job-a.outputs.ubuntu_status == 'success' }}
     steps:
-      - name: Run Job-B logic
-        run: |
-          echo "--------------------------------------------------------"
-          echo "SUCCESS: Running Job-B logic on ${{ matrix.os_runner }}!"
-          echo "Job-A on this runner succeeded. Proceeding with Job-B tasks."
-          echo "--------------------------------------------------------"
+      - name: Run Job-B logic for Ubuntu
+        run: echo "Running Job-B on Ubuntu because Job-A succeeded."
+
+  job-b-macos:
+    name: Job-B on macos-latest
+    needs: job-a
+    runs-on: macos-latest
+    if: ${{ needs.job-a.outputs.macos_status == 'success' }}
+    steps:
+      - name: Run Job-B logic for macOS
+        run: echo "Running Job-B on macOS because Job-A succeeded."
