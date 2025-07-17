@@ -41,7 +41,6 @@ jobs:
       fail-fast: false 
       matrix:
         os_runner: [ubuntu-latest, macos-latest] 
-   
     if: |
       (matrix.os_runner == 'ubuntu-latest' && needs.job-a.outputs.status_ubuntu == 'success') ||
       (matrix.os_runner == 'macos-latest' && needs.job-a.outputs.status_macos == 'success')
