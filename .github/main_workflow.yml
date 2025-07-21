@@ -1,0 +1,81 @@
+name: Dependent Triggers Orchestrator
+
+on:
+  workflow_dispatch:
+    inputs:
+      startTrigger:
+        description: 'Initiate the chained trigger process'
+        required: true
+        default: 'true'
+
+# Define a variable to hold the repository dispatch token
+env:
+  REPO_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+
+jobs:
+  trigger-job-1:
+    name: "Trigger and Wait for Workflow 1"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Workflow 1 in other_repo
+        id: trigger1
+        run: |
+          echo "Triggering workflow 'workflow-1.yml' in 'other_repo'..."
+          curl -X POST \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ env.REPO_TOKEN }}" \
+          --data '{"event_type":"start-workflow-1", "client_payload": { "source_repo": "${{ github.repository }}" }}' \
+          https://api.github.com/repos/your-org/other_repo/dispatches
+
+      - name: Check for Completion of Workflow 1
+        run: |
+          echo "Waiting for the triggered workflow to complete..."
+          # This part is crucial. You need a way to poll the status of the triggered workflow.
+          # A robust solution involves:
+          # 1. Storing the run ID of the triggered workflow (e.g., from a cURL response).
+          # 2. Polling the GitHub API for the status of that specific run ID.
+          # 3. Failing this job if the triggered workflow fails.
+          # For a simple example, we'll use a dummy wait, but in a real-world scenario, you'd use a script to check the status.
+          sleep 60 # Dummy wait, replace with a real status check loop
+
+  trigger-job-2:
+    name: "Trigger and Wait for Workflow 2"
+    needs: trigger-job-1 # This job will not run unless trigger-job-1 succeeds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Workflow 2 in same repo
+        id: trigger2
+        run: |
+          echo "Triggering workflow 'workflow-2.yml' in the same repo..."
+          # This part triggers a workflow in the same repository.
+          # A `workflow_dispatch` can be used here as well if the workflow is designed for it.
+          # For a more robust solution, you might use a separate trigger mechanism.
+          # This example assumes `workflow-2.yml` is also configured for a manual trigger.
+          echo "This would be a separate step to trigger the next workflow..."
+
+      - name: Wait for Completion of Workflow 2
+        run: |
+          echo "Waiting for the second triggered workflow to complete..."
+          # Same as above, you would have a polling script here to check the status.
+          sleep 60
+
+  trigger-job-3:
+    name: "Trigger and Wait for Workflow 3"
+    needs: trigger-job-2 # This job runs only after trigger-job-2 succeeds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Workflow 3 in a different repo
+        id: trigger3
+        run: |
+          echo "Triggering workflow 'workflow-3.yml' in a different repo..."
+          curl -X POST \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ env.REPO_TOKEN }}" \
+          --data '{"event_type":"start-workflow-3"}' \
+          https://api.github.com/repos/another-org/another_repo/dispatches
+
+      - name: Wait for Completion of Workflow 3
+        run: |
+          echo "Waiting for the third triggered workflow to complete..."
+          # Same as above, a real status check is needed here.
+          sleep 60
