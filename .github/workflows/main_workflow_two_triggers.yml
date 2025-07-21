@@ -1,0 +1,56 @@
+name: Two Dependent Triggers Orchestrator
+
+# This workflow can be triggered manually.
+on:
+  workflow_dispatch:
+    inputs:
+      startTrigger:
+        description: 'Initiate the chained trigger process'
+        required: true
+        default: 'true'
+
+# Define a variable for the repository dispatch token
+env:
+  REPO_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+
+jobs:
+  trigger-job-1:
+    name: "Trigger and Wait for Workflow 1"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Workflow 1 in other_repo
+        id: trigger1
+        run: |
+          echo "Triggering workflow 'workflow-1.yml' in 'your-org/other_repo'..."
+          curl -X POST \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization: token ${{ env.REPO_TOKEN }}" \
+          --data '{"event_type":"start-workflow-1", "client_payload": { "source_repo": "${{ github.repository }}" }}' \
+          https://api.github.com/repos/your-org/other_repo/dispatches
+          
+      - name: Check for Completion of Workflow 1
+        run: |
+          echo "Waiting for the triggered workflow to complete..."
+          # A robust solution requires polling the GitHub API for the status of the triggered workflow.
+          # The `sleep` command is a placeholder; replace it with a real status check loop.
+          sleep 60
+
+  trigger-job-2:
+    name: "Trigger and Wait for Workflow 2"
+    needs: trigger-job-1 # This job will not run unless trigger-job-1 succeeds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Workflow 2 in same repo
+        id: trigger2
+        run: |
+          echo "Triggering workflow 'workflow-2.yml' in the same repo..."
+          # This triggers a workflow within the same repository.
+          # This example assumes `workflow-2.yml` is configured for a `workflow_dispatch` trigger.
+          # You might use the GitHub CLI or another method here.
+          echo "This would be a separate step to trigger the next workflow..."
+
+      - name: Wait for Completion of Workflow 2
+        run: |
+          echo "Waiting for the second triggered workflow to complete..."
+          # Again, replace this `sleep` with a real status check.
+          sleep 60
