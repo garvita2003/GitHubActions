@@ -9,7 +9,8 @@ on:
         default: 'true'
 
 env:
-  # REPO_TOKEN (Personal Access Token) is needed for cross-repository API calls (e.g., triggering and polling workflow-1.yml)
+  # REPO_TOKEN (Personal Access Token) is needed for all cross-repository API calls
+  # and also for same-repository workflow_dispatch triggers due to GITHUB_TOKEN limitations.
   REPO_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
 
 jobs:
@@ -17,33 +18,41 @@ jobs:
     name: "Trigger and Wait for Workflow 1"
     runs-on: ubuntu-latest
     steps:
+      - name: Install jq for JSON parsing
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Trigger Workflow 1 in other_repo
         id: trigger1
         env:
-          TARGET_REPO_OWNER: garvita2003 # <--- REPLACE WITH ACTUAL GITHUB ORG/USERNAME
-          TARGET_REPO_NAME: TestingPipeline # <--- REPLACE WITH ACTUAL REPO NAME OF WORKFLOW-1.YML
+          TARGET_REPO_OWNER: your-org # <--- REPLACE WITH ACTUAL GITHUB ORG/USERNAME
+          TARGET_REPO_NAME: other_repo # <--- REPLACE WITH ACTUAL REPO NAME OF WORKFLOW-1.YML
           DISPATCH_EVENT_TYPE: start-workflow-1
         run: |
           echo "Sending repository_dispatch to trigger workflow '${{ env.TARGET_REPO_NAME }}/.github/workflows/workflow-1.yml' in '${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}' with event type: ${{ env.DISPATCH_EVENT_TYPE }}..."
+
+          # Send the repository_dispatch event to trigger the other workflow
+          # -sS for silent and show errors
           curl -sS -X POST \
           -H "Accept: application/vnd.github.v3+json" \
           -H "Authorization: token ${{ env.REPO_TOKEN }}" \
           --data '{"event_type":"${{ env.DISPATCH_EVENT_TYPE }}", "client_payload": { "source_repo": "${{ github.repository }}" }}' \
           https://api.github.com/repos/${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}/dispatches
+
           echo "Trigger dispatched. Now beginning to poll for workflow run completion..."
 
       - name: Poll for Completion of Workflow 1
         env:
-          TARGET_REPO_OWNER: garvita2003 # <--- MUST MATCH ABOVE
-          TARGET_REPO_NAME: TestingPipeline # <--- MUST MATCH ABOVE
+          TARGET_REPO_OWNER: your-org # <--- MUST MATCH ABOVE
+          TARGET_REPO_NAME: other_repo # <--- MUST MATCH ABOVE
           WAIT_INTERVAL_SECONDS: 15 # How often to check the status (seconds)
           MAX_WAIT_SECONDS: 900   # Max time to wait before failing (15 minutes)
         run: |
-          sudo apt-get update && sudo apt-get install -y jq
           elapsed_time=0
           workflow_run_id=""
+          
           echo "Attempting to find the dispatched workflow run ID in ${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}..."
           while [[ -z "$workflow_run_id" && "$elapsed_time" -lt "$MAX_WAIT_SECONDS" ]]; do
+            # Fetch recent workflow runs, filter by event type and branch, and get the latest ID
             RUNS=$(curl -sS \
               -H "Accept: application/vnd.github.v3+json" \
               -H "Authorization: token ${{ env.REPO_TOKEN }}" \
@@ -107,19 +116,22 @@ jobs:
     needs: trigger-and-wait-workflow-1 # This ensures this job runs ONLY if the previous one succeeded
     runs-on: ubuntu-latest
     steps:
+      - name: Install jq for JSON parsing
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Trigger Workflow 2 in same repo
         id: trigger2
         env:
           WORKFLOW_2_NAME: "Workflow 2" # Name of your workflow-2.yml
           WORKFLOW_2_PATH: ".github/workflows/workflow-2.yml" # Path to your workflow-2.yml
         run: |
-          echo "Triggering workflow '${{ env.WORKFLOW_2_PATH }}' (${{ env.WORKFLOW_2_NAME }}) in the current repository via workflow_dispatch..."
+          echo "Triggering workflow '${{ env.WORKFLOW_2_PATH }}' (${{ env.WORKFLOW_2_NAME }}) in the current repository via workflow_dispatch using REPO_TOKEN..."
 
           # Get the ID of Workflow 2 in the current repository
-          # Uses GITHUB_TOKEN which is default for current repo
+          # Using REPO_TOKEN (your PAT) for this API call to avoid "Resource not accessible by integration"
           WORKFLOW_ID=$(curl -sS \
             -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ github.token }}" \
+            -H "Authorization: token ${{ env.REPO_TOKEN }}" \ # <--- CHANGED TO env.REPO_TOKEN
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows" \
             | jq -r --arg name "${{ env.WORKFLOW_2_NAME }}" --arg path "${{ env.WORKFLOW_2_PATH }}" \
             '.workflows[] | select(.name == $name and .path == $path) | .id')
@@ -132,7 +144,7 @@ jobs:
           # Trigger workflow_dispatch for Workflow 2
           curl -sS -X POST \
           -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: token ${{ github.token }}" \
+          -H "Authorization: token ${{ env.REPO_TOKEN }}" \ # <--- CHANGED TO env.REPO_TOKEN
           -H "Content-Type: application/json" \
           --data '{"ref":"main", "inputs":{"source_repo": "${{ github.repository }}"}}' \
           https://api.github.com/repos/${{ github.repository }}/actions/workflows/${WORKFLOW_ID}/dispatches
@@ -147,8 +159,6 @@ jobs:
           MAX_WAIT_SECONDS: 900
           WORKFLOW_2_NAME: "Workflow 2" # Must match above
         run: |
-          sudo apt-get update && sudo apt-get install -y jq
-
           elapsed_time=0
           workflow_run_id=""
           
@@ -157,7 +167,7 @@ jobs:
             # Filter by event=workflow_dispatch and the workflow's specific name
             RUNS=$(curl -sS \
               -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token ${{ github.token }}" \
+              -H "Authorization: token ${{ env.REPO_TOKEN }}" \ # <--- CHANGED TO env.REPO_TOKEN
               "https://api.github.com/repos/${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}/actions/runs?event=workflow_dispatch&branch=main" \
               | jq -r --arg name "${{ env.WORKFLOW_2_NAME }}" '.workflow_runs[] | select(.name == $name and .head_branch == "main") | .id' | head -n 1)
 
@@ -166,7 +176,7 @@ jobs:
               echo "Found workflow run ID: $workflow_run_id"
               break
             else
-              echo "No matching run found yet. Waiting ${WAIT_INTERVAL_SECONDS}s before re-checking..."
+              echo "No matching run found yet. Waiting ${WAIT_INTERVAL_SECONDS}s..."
               sleep "${WAIT_INTERVAL_SECONDS}"
               elapsed_time=$((elapsed_time + WAIT_INTERVAL_SECONDS))
             fi
@@ -185,7 +195,7 @@ jobs:
           while [[ ("$status" != "completed") && ("$elapsed_time" -lt "$MAX_WAIT_SECONDS") ]]; do
             RUN_INFO=$(curl -sS \
               -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token ${{ github.token }}" \
+              -H "Authorization: token ${{ env.REPO_TOKEN }}" \ # <--- CHANGED TO env.REPO_TOKEN
               "https://api.github.com/repos/${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}/actions/runs/${workflow_run_id}")
 
             status=$(echo "$RUN_INFO" | jq -r '.status')
@@ -211,3 +221,217 @@ jobs:
             echo "Error: Workflow run $workflow_run_id timed out after ${MAX_WAIT_SECONDS}s. Failing this job."
             exit 1
           fi
+
+# name: Two Dependent Triggers Orchestrator
+
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       startTrigger:
+#         description: 'Initiate the chained trigger process'
+#         required: true
+#         default: 'true'
+
+# env:
+#   # REPO_TOKEN (Personal Access Token) is needed for cross-repository API calls (e.g., triggering and polling workflow-1.yml)
+#   REPO_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+
+# jobs:
+#   trigger-and-wait-workflow-1:
+#     name: "Trigger and Wait for Workflow 1"
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Trigger Workflow 1 in other_repo
+#         id: trigger1
+#         env:
+#           TARGET_REPO_OWNER: garvita2003 # <--- REPLACE WITH ACTUAL GITHUB ORG/USERNAME
+#           TARGET_REPO_NAME: TestingPipeline # <--- REPLACE WITH ACTUAL REPO NAME OF WORKFLOW-1.YML
+#           DISPATCH_EVENT_TYPE: start-workflow-1
+#         run: |
+#           echo "Sending repository_dispatch to trigger workflow '${{ env.TARGET_REPO_NAME }}/.github/workflows/workflow-1.yml' in '${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}' with event type: ${{ env.DISPATCH_EVENT_TYPE }}..."
+#           curl -sS -X POST \
+#           -H "Accept: application/vnd.github.v3+json" \
+#           -H "Authorization: token ${{ env.REPO_TOKEN }}" \
+#           --data '{"event_type":"${{ env.DISPATCH_EVENT_TYPE }}", "client_payload": { "source_repo": "${{ github.repository }}" }}' \
+#           https://api.github.com/repos/${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}/dispatches
+#           echo "Trigger dispatched. Now beginning to poll for workflow run completion..."
+
+#       - name: Poll for Completion of Workflow 1
+#         env:
+#           TARGET_REPO_OWNER: garvita2003 # <--- MUST MATCH ABOVE
+#           TARGET_REPO_NAME: TestingPipeline # <--- MUST MATCH ABOVE
+#           WAIT_INTERVAL_SECONDS: 15 # How often to check the status (seconds)
+#           MAX_WAIT_SECONDS: 900   # Max time to wait before failing (15 minutes)
+#         run: |
+#           sudo apt-get update && sudo apt-get install -y jq
+#           elapsed_time=0
+#           workflow_run_id=""
+#           echo "Attempting to find the dispatched workflow run ID in ${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}..."
+#           while [[ -z "$workflow_run_id" && "$elapsed_time" -lt "$MAX_WAIT_SECONDS" ]]; do
+#             RUNS=$(curl -sS \
+#               -H "Accept: application/vnd.github.v3+json" \
+#               -H "Authorization: token ${{ env.REPO_TOKEN }}" \
+#               "https://api.github.com/repos/${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}/actions/runs?event=repository_dispatch&branch=main" \
+#               | jq -r '.workflow_runs[] | select(.event == "repository_dispatch" and .head_branch == "main") | .id' | head -n 1) # Adjust 'main' if your default branch is different
+
+#             if [[ -n "$RUNS" ]]; then
+#               workflow_run_id="$RUNS"
+#               echo "Found workflow run ID: $workflow_run_id"
+#               break
+#             else
+#               echo "No matching run found yet. Waiting ${WAIT_INTERVAL_SECONDS}s before re-checking..."
+#               sleep "${WAIT_INTERVAL_SECONDS}"
+#               elapsed_time=$((elapsed_time + WAIT_INTERVAL_SECONDS))
+#             fi
+#           done
+
+#           if [[ -z "$workflow_run_id" ]]; then
+#             echo "Error: Could not find a matching workflow run within the timeout period (${MAX_WAIT_SECONDS}s)."
+#             exit 1 # Fail if we can't even find the run to poll
+#           fi
+
+#           # --- Part 2: Poll the status of the identified run ---
+#           status=""
+#           conclusion=""
+#           elapsed_time=0
+
+#           echo "Polling status for workflow run ID: $workflow_run_id in ${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}..."
+#           while [[ ("$status" != "completed") && ("$elapsed_time" -lt "$MAX_WAIT_SECONDS") ]]; do
+#             RUN_INFO=$(curl -sS \
+#               -H "Accept: application/vnd.github.v3+json" \
+#               -H "Authorization: token ${{ env.REPO_TOKEN }}" \
+#               "https://api.github.com/repos/${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}/actions/runs/${workflow_run_id}")
+
+#             status=$(echo "$RUN_INFO" | jq -r '.status')
+#             conclusion=$(echo "$RUN_INFO" | jq -r '.conclusion')
+
+#             echo "Current status: '$status', Conclusion: '$conclusion' (Elapsed: ${elapsed_time}s/${MAX_WAIT_SECONDS}s)"
+
+#             if [[ "$status" == "completed" ]]; then
+#               if [[ "$conclusion" == "success" ]]; then
+#                 echo "Workflow run $workflow_run_id completed successfully. Proceeding to next job."
+#                 exit 0 # Explicitly exit 0 for success
+#               else
+#                 echo "Workflow run $workflow_run_id completed with status: $conclusion. Failing this job."
+#                 exit 1 # Explicitly exit 1 for failure
+#               fi
+#             fi
+
+#             sleep "${WAIT_INTERVAL_SECONDS}" # Wait before checking again
+#             elapsed_time=$((elapsed_time + WAIT_INTERVAL_SECONDS))
+#           done
+
+#           if [[ "$status" != "completed" ]]; then
+#             echo "Error: Workflow run $workflow_run_id timed out after ${MAX_WAIT_SECONDS}s without completing. Failing this job."
+#             exit 1 # Fail if timeout reached before completion
+#           fi
+
+#   trigger-and-wait-workflow-2:
+#     name: "Trigger and Wait for Workflow 2"
+#     needs: trigger-and-wait-workflow-1 # This ensures this job runs ONLY if the previous one succeeded
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Trigger Workflow 2 in same repo
+#         id: trigger2
+#         env:
+#           WORKFLOW_2_NAME: "Workflow 2" # Name of your workflow-2.yml
+#           WORKFLOW_2_PATH: ".github/workflows/workflow-2.yml" # Path to your workflow-2.yml
+#         run: |
+#           echo "Triggering workflow '${{ env.WORKFLOW_2_PATH }}' (${{ env.WORKFLOW_2_NAME }}) in the current repository via workflow_dispatch..."
+
+#           # Get the ID of Workflow 2 in the current repository
+#           # Uses GITHUB_TOKEN which is default for current repo
+#           WORKFLOW_ID=$(curl -sS \
+#             -H "Accept: application/vnd.github.v3+json" \
+#             -H "Authorization: token ${{ github.token }}" \
+#             "https://api.github.com/repos/${{ github.repository }}/actions/workflows" \
+#             | jq -r --arg name "${{ env.WORKFLOW_2_NAME }}" --arg path "${{ env.WORKFLOW_2_PATH }}" \
+#             '.workflows[] | select(.name == $name and .path == $path) | .id')
+
+#           if [[ -z "$WORKFLOW_ID" ]]; then
+#             echo "Error: Could not find workflow '${{ env.WORKFLOW_2_NAME }}' by name/path in this repository."
+#             exit 1
+#           fi
+
+#           # Trigger workflow_dispatch for Workflow 2
+#           curl -sS -X POST \
+#           -H "Accept: application/vnd.github.v3+json" \
+#           -H "Authorization: token ${{ github.token }}" \
+#           -H "Content-Type: application/json" \
+#           --data '{"ref":"main", "inputs":{"source_repo": "${{ github.repository }}"}}' \
+#           https://api.github.com/repos/${{ github.repository }}/actions/workflows/${WORKFLOW_ID}/dispatches
+
+#           echo "Trigger dispatched for Workflow 2. Now beginning to poll for run completion..."
+      
+#       - name: Poll for Completion of Workflow 2
+#         env:
+#           TARGET_REPO_OWNER: ${{ github.repository_owner }}
+#           TARGET_REPO_NAME: ${{ github.event.repository.name }}
+#           WAIT_INTERVAL_SECONDS: 15
+#           MAX_WAIT_SECONDS: 900
+#           WORKFLOW_2_NAME: "Workflow 2" # Must match above
+#         run: |
+#           sudo apt-get update && sudo apt-get install -y jq
+
+#           elapsed_time=0
+#           workflow_run_id=""
+          
+#           echo "Attempting to find the dispatched Workflow 2 run ID in ${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}..."
+#           while [[ -z "$workflow_run_id" && "$elapsed_time" -lt "$MAX_WAIT_SECONDS" ]]; do
+#             # Filter by event=workflow_dispatch and the workflow's specific name
+#             RUNS=$(curl -sS \
+#               -H "Accept: application/vnd.github.v3+json" \
+#               -H "Authorization: token ${{ github.token }}" \
+#               "https://api.github.com/repos/${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}/actions/runs?event=workflow_dispatch&branch=main" \
+#               | jq -r --arg name "${{ env.WORKFLOW_2_NAME }}" '.workflow_runs[] | select(.name == $name and .head_branch == "main") | .id' | head -n 1)
+
+#             if [[ -n "$RUNS" ]]; then
+#               workflow_run_id="$RUNS"
+#               echo "Found workflow run ID: $workflow_run_id"
+#               break
+#             else
+#               echo "No matching run found yet. Waiting ${WAIT_INTERVAL_SECONDS}s before re-checking..."
+#               sleep "${WAIT_INTERVAL_SECONDS}"
+#               elapsed_time=$((elapsed_time + WAIT_INTERVAL_SECONDS))
+#             fi
+#           done
+
+#           if [[ -z "$workflow_run_id" ]]; then
+#             echo "Error: Could not find a matching Workflow 2 run within the timeout period (${MAX_WAIT_SECONDS}s)."
+#             exit 1
+#           fi
+
+#           status=""
+#           conclusion=""
+#           elapsed_time=0
+
+#           echo "Polling status for Workflow 2 run ID: $workflow_run_id in ${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}..."
+#           while [[ ("$status" != "completed") && ("$elapsed_time" -lt "$MAX_WAIT_SECONDS") ]]; do
+#             RUN_INFO=$(curl -sS \
+#               -H "Accept: application/vnd.github.v3+json" \
+#               -H "Authorization: token ${{ github.token }}" \
+#               "https://api.github.com/repos/${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}/actions/runs/${workflow_run_id}")
+
+#             status=$(echo "$RUN_INFO" | jq -r '.status')
+#             conclusion=$(echo "$RUN_INFO" | jq -r '.conclusion')
+
+#             echo "Current status: '$status', Conclusion: '$conclusion' (Elapsed: ${elapsed_time}s/${MAX_WAIT_SECONDS}s)"
+
+#             if [[ "$status" == "completed" ]]; then
+#               if [[ "$conclusion" == "success" ]]; then
+#                 echo "Workflow run $workflow_run_id completed successfully. This job will now succeed."
+#                 exit 0
+#               else
+#                 echo "Workflow run $workflow_run_id completed with status: $conclusion. Failing this job."
+#                 exit 1
+#               fi
+#             fi
+
+#             sleep "${WAIT_INTERVAL_SECONDS}"
+#             elapsed_time=$((elapsed_time + WAIT_INTERVAL_SECONDS))
+#           done
+
+#           if [[ "$status" != "completed" ]]; then
+#             echo "Error: Workflow run $workflow_run_id timed out after ${MAX_WAIT_SECONDS}s. Failing this job."
+#             exit 1
+#           fi
