@@ -24,8 +24,8 @@ jobs:
       - name: Trigger Workflow 1 in other_repo
         id: trigger1
         env:
-          TARGET_REPO_OWNER: your-org # <--- REPLACE WITH ACTUAL GITHUB ORG/USERNAME
-          TARGET_REPO_NAME: other_repo # <--- REPLACE WITH ACTUAL REPO NAME OF WORKFLOW-1.YML
+          TARGET_REPO_OWNER: garvita2003 # <--- REPLACE WITH ACTUAL GITHUB ORG/USERNAME
+          TARGET_REPO_NAME: TestingPipeline # <--- REPLACE WITH ACTUAL REPO NAME OF WORKFLOW-1.YML
           DISPATCH_EVENT_TYPE: start-workflow-1
         run: |
           echo "Sending repository_dispatch to trigger workflow '${{ env.TARGET_REPO_NAME }}/.github/workflows/workflow-1.yml' in '${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}' with event type: ${{ env.DISPATCH_EVENT_TYPE }}..."
@@ -42,8 +42,8 @@ jobs:
 
       - name: Poll for Completion of Workflow 1
         env:
-          TARGET_REPO_OWNER: your-org # <--- MUST MATCH ABOVE
-          TARGET_REPO_NAME: other_repo # <--- MUST MATCH ABOVE
+          TARGET_REPO_OWNER: garvita2003 # <--- MUST MATCH ABOVE
+          TARGET_REPO_NAME: TestingPipeline # <--- MUST MATCH ABOVE
           WAIT_INTERVAL_SECONDS: 15 # How often to check the status (seconds)
           MAX_WAIT_SECONDS: 900   # Max time to wait before failing (15 minutes)
         run: |
