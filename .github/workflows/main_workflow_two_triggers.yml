@@ -45,7 +45,7 @@ jobs:
           WAIT_INTERVAL_SECONDS: 15 
           MAX_WAIT_SECONDS: 1000
         run: |
-          elapsed_time=0
+          elapsed_time=1000
           workflow_run_id=""
           
           echo "Attempting to find the dispatched workflow run ID in ${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}..."
