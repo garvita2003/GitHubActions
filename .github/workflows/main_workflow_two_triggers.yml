@@ -45,7 +45,7 @@ jobs:
           WAIT_INTERVAL_SECONDS: 15 
           MAX_WAIT_SECONDS: 1000
         run: |
-          elapsed_time=1000
+          elapsed_time=0
           workflow_run_id=""
           
           echo "Attempting to find the dispatched workflow run ID in ${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}..."
@@ -76,7 +76,7 @@ jobs:
           # --- Part 2: Poll the status of the identified run ---
           status=""
           conclusion=""
-          elapsed_time=1000
+          elapsed_time=0
 
           echo "Polling status for workflow run ID: $workflow_run_id in ${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}..."
           while [[ ("$status" != "completed") && ("$elapsed_time" -lt "$MAX_WAIT_SECONDS") ]]; do
