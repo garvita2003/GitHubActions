@@ -9,8 +9,6 @@ on:
         default: 'true'
 
 env:
-  # REPO_TOKEN (Personal Access Token) is needed for all cross-repository API calls
-  # and also for same-repository workflow_dispatch triggers due to GITHUB_TOKEN limitations.
   REPO_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
 
 jobs:
@@ -24,8 +22,8 @@ jobs:
       - name: Trigger Workflow 1 in other_repo
         id: trigger1
         env:
-          TARGET_REPO_OWNER: garvita2003 # <--- REPLACE WITH ACTUAL GITHUB ORG/USERNAME
-          TARGET_REPO_NAME: TestingPipeline # <--- REPLACE WITH ACTUAL REPO NAME OF WORKFLOW-1.YML
+          TARGET_REPO_OWNER: garvita2003
+          TARGET_REPO_NAME: TestingPipeline 
           DISPATCH_EVENT_TYPE: start-workflow-1
         run: |
           echo "Sending repository_dispatch to trigger workflow '${{ env.TARGET_REPO_NAME }}/.github/workflows/workflow-1.yml' in '${{ env.TARGET_REPO_OWNER }}/${{ env.TARGET_REPO_NAME }}' with event type: ${{ env.DISPATCH_EVENT_TYPE }}..."
@@ -42,10 +40,10 @@ jobs:
 
       - name: Poll for Completion of Workflow 1
         env:
-          TARGET_REPO_OWNER: garvita2003 # <--- MUST MATCH ABOVE
-          TARGET_REPO_NAME: TestingPipeline # <--- MUST MATCH ABOVE
-          WAIT_INTERVAL_SECONDS: 15 # How often to check the status (seconds)
-          MAX_WAIT_SECONDS: 900   # Max time to wait before failing (15 minutes)
+          TARGET_REPO_OWNER: garvita2003
+          TARGET_REPO_NAME: TestingPipeline 
+          WAIT_INTERVAL_SECONDS: 15 
+          MAX_WAIT_SECONDS: 1000
         run: |
           elapsed_time=0
           workflow_run_id=""
