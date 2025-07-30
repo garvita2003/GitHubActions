@@ -1,0 +1,28 @@
+name: Trigger and Wait
+
+on:
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Repo B Workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          repository: garvita2003/TestingPipeline
+          event-type: start-workflow
+          client-payload: '{"ref": "main"}'
+
+  wait:
+    needs: trigger
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Repo B Workflow to Complete
+        uses: jakejarvis/wait-for-check@v0.3.0
+        with:
+          repo: garvita2003/TestingPipeline
+          ref: main
+          checkName: 'Triggered Workflow Name'
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
