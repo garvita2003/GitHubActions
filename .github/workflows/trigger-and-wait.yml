@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Wait for Repo B Workflow to Complete
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
           REPO: garvita2003/TestingPipeline
           WORKFLOW_NAME: Triggered Workflow
           BRANCH: main
