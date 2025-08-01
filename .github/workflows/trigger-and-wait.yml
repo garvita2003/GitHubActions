@@ -4,7 +4,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  trigger:
+  # Trigger Repo B
+  trigger-repo-b:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Repo B Workflow
@@ -15,8 +16,9 @@ jobs:
           event-type: start-workflow
           client-payload: '{"ref": "main"}'
 
-  wait:
-    needs: trigger
+  # Wait for Repo B
+  wait-repo-b:
+    needs: trigger-repo-b
     runs-on: ubuntu-latest
     steps:
       - name: Wait for Repo B Workflow to Complete
@@ -27,27 +29,27 @@ jobs:
           BRANCH: main
         run: |
           echo "Waiting for workflow '$WORKFLOW_NAME' in $REPO to complete..."
-  
+
           while true; do
             RUN_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
               "https://api.github.com/repos/$REPO/actions/workflows" \
               | jq -r ".workflows[] | select(.name==\"$WORKFLOW_NAME\") | .id")
-  
+
             if [ -z "$RUN_ID" ]; then
               echo "Workflow not found!"
               exit 1
             fi
-  
+
             RUN_STATUS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
               "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
               | jq -r '.workflow_runs[0].status')
-  
+
             CONCLUSION=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
               "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
               | jq -r '.workflow_runs[0].conclusion')
-  
+
             echo "Current status: $RUN_STATUS"
-  
+
             if [ "$RUN_STATUS" == "completed" ]; then
               echo "Workflow completed with conclusion: $CONCLUSION"
               if [ "$CONCLUSION" == "success" ]; then
@@ -56,7 +58,186 @@ jobs:
                 exit 1
               fi
             fi
-  
+
             sleep 15
           done
+
+  # Trigger Repo C (example additional repo)
+  trigger-repo-c:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Repo C Workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          repository: garvita2003/RepoC
+          event-type: start-workflow
+          client-payload: '{"ref": "main"}'
+
+  # Wait for Repo C
+  wait-repo-c:
+    needs: trigger-repo-c
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Repo C Workflow to Complete
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+          REPO: garvita2003/RepoC
+          WORKFLOW_NAME: Triggered Workflow
+          BRANCH: main
+        run: |
+          echo "Waiting for workflow '$WORKFLOW_NAME' in $REPO to complete..."
+
+          while true; do
+            RUN_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/$REPO/actions/workflows" \
+              | jq -r ".workflows[] | select(.name==\"$WORKFLOW_NAME\") | .id")
+
+            if [ -z "$RUN_ID" ]; then
+              echo "Workflow not found!"
+              exit 1
+            fi
+
+            RUN_STATUS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
+              | jq -r '.workflow_runs[0].status')
+
+            CONCLUSION=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
+              | jq -r '.workflow_runs[0].conclusion')
+
+            echo "Current status: $RUN_STATUS"
+
+            if [ "$RUN_STATUS" == "completed" ]; then
+              echo "Workflow completed with conclusion: $CONCLUSION"
+              if [ "$CONCLUSION" == "success" ]; then
+                exit 0
+              else
+                exit 1
+              fi
+            fi
+
+            sleep 15
+          done
+
+  # Re-trigger Repo B after first success
+  trigger-repo-b-again:
+    needs: wait-repo-b
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-trigger Repo B Workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          repository: garvita2003/TestingPipeline
+          event-type: start-workflow
+          client-payload: '{"ref": "main"}'
+
+  # Wait for second Repo B run
+  wait-repo-b-again:
+    needs: trigger-repo-b-again
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Second Repo B Workflow to Complete
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+          REPO: garvita2003/TestingPipeline
+          WORKFLOW_NAME: Triggered Workflow
+          BRANCH: main
+        run: |
+          echo "Waiting for second workflow '$WORKFLOW_NAME' in $REPO to complete..."
+
+          while true; do
+            RUN_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/$REPO/actions/workflows" \
+              | jq -r ".workflows[] | select(.name==\"$WORKFLOW_NAME\") | .id")
+
+            if [ -z "$RUN_ID" ]; then
+              echo "Workflow not found!"
+              exit 1
+            fi
+
+            RUN_STATUS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
+              | jq -r '.workflow_runs[0].status')
+
+            CONCLUSION=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
+              | jq -r '.workflow_runs[0].conclusion')
+
+            echo "Current status: $RUN_STATUS"
+
+            if [ "$RUN_STATUS" == "completed" ]; then
+              echo "Workflow completed with conclusion: $CONCLUSION"
+              if [ "$CONCLUSION" == "success" ]; then
+                exit 0
+              else
+                exit 1
+              fi
+            fi
+
+            sleep 15
+          done
+
+# name: Trigger and Wait
+
+# on:
+#   workflow_dispatch:
+
+# jobs:
+#   trigger:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Trigger Repo B Workflow
+#         uses: peter-evans/repository-dispatch@v3
+#         with:
+#           token: ${{ secrets.REPO_ACCESS_TOKEN }}
+#           repository: garvita2003/TestingPipeline
+#           event-type: start-workflow
+#           client-payload: '{"ref": "main"}'
+
+#   wait:
+#     needs: trigger
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Wait for Repo B Workflow to Complete
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+#           REPO: garvita2003/TestingPipeline
+#           WORKFLOW_NAME: Triggered Workflow
+#           BRANCH: main
+#         run: |
+#           echo "Waiting for workflow '$WORKFLOW_NAME' in $REPO to complete..."
+  
+#           while true; do
+#             RUN_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+#               "https://api.github.com/repos/$REPO/actions/workflows" \
+#               | jq -r ".workflows[] | select(.name==\"$WORKFLOW_NAME\") | .id")
+  
+#             if [ -z "$RUN_ID" ]; then
+#               echo "Workflow not found!"
+#               exit 1
+#             fi
+  
+#             RUN_STATUS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+#               "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
+#               | jq -r '.workflow_runs[0].status')
+  
+#             CONCLUSION=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+#               "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
+#               | jq -r '.workflow_runs[0].conclusion')
+  
+#             echo "Current status: $RUN_STATUS"
+  
+#             if [ "$RUN_STATUS" == "completed" ]; then
+#               echo "Workflow completed with conclusion: $CONCLUSION"
+#               if [ "$CONCLUSION" == "success" ]; then
+#                 exit 0
+#               else
+#                 exit 1
+#               fi
+#             fi
+  
+#             sleep 15
+#           done
 
