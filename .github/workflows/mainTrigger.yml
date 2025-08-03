@@ -110,6 +110,7 @@ jobs:
 
   # Trigger AI Common
   trigger-ai-common:
+    needs: wait-edge-rt-deploy
     runs-on: ubuntu-latest
     steps:
       - name: Trigger AI Common Workflow
