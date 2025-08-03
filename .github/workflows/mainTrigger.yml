@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Trigger Edge RT
-  trigger-edge-rt:
+  # Trigger Repo B
+  trigger-edge-rt-build:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Edge RT Workflow
+      - name: Trigger Repo B Workflow
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.REPO_ACCESS_TOKEN }}
@@ -16,16 +16,16 @@ jobs:
           event-type: start-workflow
           client-payload: '{"ref": "main"}'
 
-  # Wait for Edge RT - Build
+  # Wait for Repo B
   wait-edge-rt-build:
-    needs: trigger-edge-rt
+    needs: trigger-edge-rt-build
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for Edge RT Build Workflow to Complete
+      - name: Wait for Repo B Workflow to Complete
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
           REPO: garvita2003/TestingPipeline
-          WORKFLOW_NAME: Triggered Edge RT Build Workflow
+          WORKFLOW_NAME: Triggered Workflow
           BRANCH: main
         run: |
           echo "Waiting for workflow '$WORKFLOW_NAME' in $REPO to complete..."
@@ -62,12 +62,25 @@ jobs:
             sleep 15
           done
 
-  # Wait for Edge RT - Deploy 
-  wait-edge-rt-deploy:
+  # Trigger Repo C (example additional repo)
+  trigger-edge-rt-deploy:
     needs: wait-edge-rt-build
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for Edge RT Deploy Workflow to Complete
+      - name: Trigger Repo C Workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          repository: garvita2003/RepoC
+          event-type: start-workflow
+          client-payload: '{"ref": "main"}'
+
+  # Wait for Repo C
+  wait-edge-rt-deploy:
+    needs: trigger-edge-rt-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Repo C Workflow to Complete
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
           REPO: garvita2003/RepoC
@@ -108,61 +121,22 @@ jobs:
             sleep 15
           done
 
-  # Trigger AI Common
+  # Re-trigger Repo B after first success
   trigger-ai-common:
     needs: wait-edge-rt-deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger AI Common Workflow
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
-          repository: garvita2003/RepoC
-          event-type: start-workflow
-          client-payload: '{"ref": "main"}'
+      - name: Do something
+        run: |
+          echo "Running AI Common"
+          sleep 60
 
-  # Wait for Data Insight
-  wait-data-insights:
+  # Wait for second Repo B run
+  trigger-data-insight:
     needs: trigger-ai-common
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for Data Insights Workflow to Complete
-        env:
-          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
-          REPO: garvita2003/TestingPipeline
-          WORKFLOW_NAME: Triggered Workflow
-          BRANCH: main
+      - name: Do something
         run: |
-          echo "Waiting for workflow '$WORKFLOW_NAME' in $REPO to complete..."
-
-          while true; do
-            RUN_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-              "https://api.github.com/repos/$REPO/actions/workflows" \
-              | jq -r ".workflows[] | select(.name==\"$WORKFLOW_NAME\") | .id")
-
-            if [ -z "$RUN_ID" ]; then
-              echo "Workflow not found!"
-              exit 1
-            fi
-
-            RUN_STATUS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-              "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
-              | jq -r '.workflow_runs[0].status')
-
-            CONCLUSION=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-              "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
-              | jq -r '.workflow_runs[0].conclusion')
-
-            echo "Current status: $RUN_STATUS"
-
-            if [ "$RUN_STATUS" == "completed" ]; then
-              echo "Workflow completed with conclusion: $CONCLUSION"
-              if [ "$CONCLUSION" == "success" ]; then
-                exit 0
-              else
-                exit 1
-              fi
-            fi
-
-            sleep 15
-          done
+          echo "Running Data Insight"
+          sleep 120
