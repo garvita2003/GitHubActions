@@ -30,7 +30,13 @@ jobs:
         run: |
           echo "Waiting for workflow '$WORKFLOW_NAME' in $REPO to complete..."
 
+          START_TIME=$(date +%s)
+          TIMEOUT=300  # 5 minutes
+
           while true; do
+            CURRENT_TIME=$(date +%s)
+            ELAPSED=$((CURRENT_TIME - START_TIME))
+
             RUN_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
               "https://api.github.com/repos/$REPO/actions/workflows" \
               | jq -r ".workflows[] | select(.name==\"$WORKFLOW_NAME\") | .id")
@@ -58,11 +64,16 @@ jobs:
                 exit 1
               fi
             fi
+            if [ "$RUN_STATUS" == "queued" ] || [ "$CONCLUSION" == "failure" ]; then
+              if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+                echo "Workflow stuck in '$RUN_STATUS' or failed for more than 5 minutes. Terminating..."
+                exit 1
+              fi
+            fi
 
             sleep 15
           done
-
-  # Trigger Repo C (example additional repo)
+  # Trigger Repo C
   trigger-edge-rt-deploy:
     needs: wait-edge-rt-build
     runs-on: ubuntu-latest
@@ -89,7 +100,13 @@ jobs:
         run: |
           echo "Waiting for workflow '$WORKFLOW_NAME' in $REPO to complete..."
 
+          START_TIME=$(date +%s)
+          TIMEOUT=300  # 5 minutes
+
           while true; do
+            CURRENT_TIME=$(date +%s)
+            ELAPSED=$((CURRENT_TIME - START_TIME))
+
             RUN_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
               "https://api.github.com/repos/$REPO/actions/workflows" \
               | jq -r ".workflows[] | select(.name==\"$WORKFLOW_NAME\") | .id")
@@ -118,6 +135,13 @@ jobs:
               fi
             fi
 
+            if [ "$RUN_STATUS" == "queued" ] || [ "$CONCLUSION" == "failure" ]; then
+              if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+                echo "Workflow stuck in '$RUN_STATUS' or failed for more than 5 minutes. Terminating..."
+                exit 1
+              fi
+            fi
+
             sleep 15
           done
 
@@ -140,3 +164,147 @@ jobs:
         run: |
           echo "Running Data Insight"
           sleep 120
+
+
+# name: Trigger and Wait 2
+
+# on:
+#   workflow_dispatch:
+
+# jobs:
+#   # Trigger Repo B
+#   trigger-edge-rt-build:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Trigger Repo B Workflow
+#         uses: peter-evans/repository-dispatch@v3
+#         with:
+#           token: ${{ secrets.REPO_ACCESS_TOKEN }}
+#           repository: garvita2003/TestingPipeline
+#           event-type: start-workflow
+#           client-payload: '{"ref": "main"}'
+
+#   # Wait for Repo B
+#   wait-edge-rt-build:
+#     needs: trigger-edge-rt-build
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Wait for Repo B Workflow to Complete
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+#           REPO: garvita2003/TestingPipeline
+#           WORKFLOW_NAME: Triggered Workflow
+#           BRANCH: main
+#         run: |
+#           echo "Waiting for workflow '$WORKFLOW_NAME' in $REPO to complete..."
+
+#           while true; do
+#             RUN_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+#               "https://api.github.com/repos/$REPO/actions/workflows" \
+#               | jq -r ".workflows[] | select(.name==\"$WORKFLOW_NAME\") | .id")
+
+#             if [ -z "$RUN_ID" ]; then
+#               echo "Workflow not found!"
+#               exit 1
+#             fi
+
+#             RUN_STATUS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+#               "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
+#               | jq -r '.workflow_runs[0].status')
+
+#             CONCLUSION=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+#               "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
+#               | jq -r '.workflow_runs[0].conclusion')
+
+#             echo "Current status: $RUN_STATUS"
+
+#             if [ "$RUN_STATUS" == "completed" ]; then
+#               echo "Workflow completed with conclusion: $CONCLUSION"
+#               if [ "$CONCLUSION" == "success" ]; then
+#                 exit 0
+#               else
+#                 exit 1
+#               fi
+#             fi
+
+#             sleep 15
+#           done
+
+#   # Trigger Repo C (example additional repo)
+#   trigger-edge-rt-deploy:
+#     needs: wait-edge-rt-build
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Trigger Repo C Workflow
+#         uses: peter-evans/repository-dispatch@v3
+#         with:
+#           token: ${{ secrets.REPO_ACCESS_TOKEN }}
+#           repository: garvita2003/RepoC
+#           event-type: start-workflow
+#           client-payload: '{"ref": "main"}'
+
+#   # Wait for Repo C
+#   wait-edge-rt-deploy:
+#     needs: trigger-edge-rt-deploy
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Wait for Repo C Workflow to Complete
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+#           REPO: garvita2003/RepoC
+#           WORKFLOW_NAME: Triggered Workflow
+#           BRANCH: main
+#         run: |
+#           echo "Waiting for workflow '$WORKFLOW_NAME' in $REPO to complete..."
+
+#           while true; do
+#             RUN_ID=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+#               "https://api.github.com/repos/$REPO/actions/workflows" \
+#               | jq -r ".workflows[] | select(.name==\"$WORKFLOW_NAME\") | .id")
+
+#             if [ -z "$RUN_ID" ]; then
+#               echo "Workflow not found!"
+#               exit 1
+#             fi
+
+#             RUN_STATUS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+#               "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
+#               | jq -r '.workflow_runs[0].status')
+
+#             CONCLUSION=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+#               "https://api.github.com/repos/$REPO/actions/workflows/$RUN_ID/runs?branch=$BRANCH&per_page=1" \
+#               | jq -r '.workflow_runs[0].conclusion')
+
+#             echo "Current status: $RUN_STATUS"
+
+#             if [ "$RUN_STATUS" == "completed" ]; then
+#               echo "Workflow completed with conclusion: $CONCLUSION"
+#               if [ "$CONCLUSION" == "success" ]; then
+#                 exit 0
+#               else
+#                 exit 1
+#               fi
+#             fi
+
+#             sleep 15
+#           done
+
+#   # Re-trigger Repo B after first success
+#   trigger-ai-common:
+#     needs: wait-edge-rt-deploy
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Do something
+#         run: |
+#           echo "Running AI Common"
+#           sleep 60
+
+#   # Wait for second Repo B run
+#   trigger-data-insight:
+#     needs: trigger-ai-common
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Do something
+#         run: |
+#           echo "Running Data Insight"
+#           sleep 120
