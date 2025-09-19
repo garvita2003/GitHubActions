@@ -46,8 +46,8 @@ jobs:
             
             # Fetch the workflow run ID
             RUN_ID=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
-              "https://api.github.com/repos/${{ env.REPO_B }}/actions/runs?branch=${{ env.BRANCH }}" \
-              | jq -r --arg name "$WORKFLOW_NAME" '.workflow_runs[] | select(.name==$name) | .id' | head -n 1)
+            "https://api.github.com/repos/${{ env.REPO_B }}/actions/runs?branch=${{ env.BRANCH }}" \
+            | jq -r --arg name "$WORKFLOW_NAME" '.workflow_runs | sort_by(.created_at) | reverse | .[] | select(.name==$name and .event=="workflow_dispatch") | .id' | head -n 1)
             
             if [ -z "$RUN_ID" ]; then
                 echo "Workflow not found, waiting for it to be created..."
@@ -99,10 +99,10 @@ jobs:
               echo "Workflow stuck or timed out after 5 minutes."
               exit 1
             fi
-            
+
             RUN_ID=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
-              "https://api.github.com/repos/${{ env.REPO_C }}/actions/runs?branch=${{ env.BRANCH }}" \
-              | jq -r --arg name "$WORKFLOW_NAME" '.workflow_runs[] | select(.name==$name) | .id' | head -n 1)
+            "https://api.github.com/repos/${{ env.REPO_C }}/actions/runs?branch=${{ env.BRANCH }}" \
+            | jq -r --arg name "$WORKFLOW_NAME" '.workflow_runs | sort_by(.created_at) | reverse | .[] | select(.name==$name and .event=="workflow_dispatch") | .id' | head -n 1)
             
             if [ -z "$RUN_ID" ]; then
                 echo "Workflow not found, waiting for it to be created..."
