@@ -159,6 +159,7 @@ jobs:
           done
           
       - name: Trigger Data Insight
+        shell: bash
         run: |
           echo "Running Data Insight on ${{ env.OS_NAME }}"
           if [ "${{ env.OS_NAME }}" == "ubuntu-latest" ]; then
