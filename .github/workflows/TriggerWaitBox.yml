@@ -24,14 +24,6 @@ jobs:
         run: |
           echo "Triggering and waiting for edge-rt-build on ${{ env.OS_NAME }}..."
           
-          # Use a tool to trigger a workflow.
-          # The peter-evans action is a more robust way to do this.
-          # The key is what comes after the dispatch.
-          
-          # You need to manually trigger the dispatch and capture the workflow run ID
-          # to be able to wait for it. The peter-evans action doesn't return the run ID.
-          # We'll stick with the curl command for a single step.
-          
           # Trigger the workflow
           curl -s -X POST \
             -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
@@ -52,10 +44,10 @@ jobs:
               exit 1
             fi
             
-            # Fetch the workflow run ID. We need to find the latest run with the correct branch.
+            # Fetch the workflow run ID
             RUN_ID=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
               "https://api.github.com/repos/${{ env.REPO_B }}/actions/runs?branch=${{ env.BRANCH }}" \
-              | jq -r '.workflow_runs[] | select(.name=="'${{ env.WORKFLOW_NAME }}'") | .id' | head -n 1)
+              | jq -r --arg name "$WORKFLOW_NAME" '.workflow_runs[] | select(.name==$name) | .id' | head -n 1)
             
             if [ -z "$RUN_ID" ]; then
                 echo "Workflow not found, waiting for it to be created..."
@@ -110,7 +102,7 @@ jobs:
             
             RUN_ID=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
               "https://api.github.com/repos/${{ env.REPO_C }}/actions/runs?branch=${{ env.BRANCH }}" \
-              | jq -r '.workflow_runs[] | select(.name=="'${{ env.WORKFLOW_NAME }}'") | .id' | head -n 1)
+              | jq -r --arg name "$WORKFLOW_NAME" '.workflow_runs[] | select(.name==$name) | .id' | head -n 1)
             
             if [ -z "$RUN_ID" ]; then
                 echo "Workflow not found, waiting for it to be created..."
