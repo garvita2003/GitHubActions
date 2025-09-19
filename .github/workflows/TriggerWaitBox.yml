@@ -35,6 +35,10 @@ jobs:
           START_TIME=$(date +%s)
           TIMEOUT=300 # 5 minutes
           
+          # Add an initial sleep to allow the run to be created in the API
+          echo "Trigger successful. Waiting for the new workflow run to appear..."
+          sleep 10
+          
           while true; do
             CURRENT_TIME=$(date +%s)
             ELAPSED=$((CURRENT_TIME - START_TIME))
@@ -44,10 +48,10 @@ jobs:
               exit 1
             fi
             
-            # Fetch the workflow run ID
+            # Fetch the latest workflow run ID for the 'workflow_dispatch' event
             RUN_ID=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
-            "https://api.github.com/repos/${{ env.REPO_B }}/actions/runs?branch=${{ env.BRANCH }}" \
-            | jq -r --arg name "$WORKFLOW_NAME" '.workflow_runs | sort_by(.created_at) | reverse | .[] | select(.name==$name and .event=="workflow_dispatch") | .id' | head -n 1)
+              "https://api.github.com/repos/${{ env.REPO_B }}/actions/runs?branch=${{ env.BRANCH }}" \
+              | jq -r --arg name "$WORKFLOW_NAME" '.workflow_runs | sort_by(.created_at) | reverse | .[] | select(.name==$name and .event=="workflow_dispatch") | .id' | head -n 1)
             
             if [ -z "$RUN_ID" ]; then
                 echo "Workflow not found, waiting for it to be created..."
