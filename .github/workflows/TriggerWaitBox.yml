@@ -53,8 +53,8 @@ jobs:
             
             echo "--- API Response Debugging ---"
             echo "Expected Workflow Name: ${{ env.WORKFLOW_NAME }}"
-            echo "Available Workflow Names and Events:"
-            echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[] | "ID: \(.id), Name: \(.name), Event: \(.event), Created: \(.created_at)"'
+            echo "Top 5 Available Workflow Names and Events:"
+            echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[] | "ID: \(.id), Name: \(.name), Event: \(.event), Created: \(.created_at)"' | head -n 5
             echo "----------------------------"
 
             # Fetch the latest workflow run ID based on creation time and name
@@ -124,8 +124,8 @@ jobs:
             
             echo "--- API Response Debugging ---"
             echo "Expected Workflow Name: ${{ env.WORKFLOW_NAME }}"
-            echo "Available Workflow Names and Events:"
-            echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[] | "ID: \(.id), Name: \(.name), Event: \(.event), Created: \(.created_at)"'
+            echo "Top 5 Available Workflow Names and Events:"
+            echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[] | "ID: \(.id), Name: \(.name), Event: \(.event), Created: \(.created_at)"' | head -n 5
             echo "----------------------------"
 
             # Fetch the latest workflow run ID based on creation time and name
