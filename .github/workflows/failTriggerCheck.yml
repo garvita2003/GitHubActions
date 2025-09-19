@@ -1,0 +1,174 @@
+name: Trigger and Wait with Polling - Failure Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pipeline:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      OS_NAME: ${{ matrix.os }}
+      REPO_B: garvita2003/TestingPipeline
+      REPO_C: garvita2003/RepoC
+      WORKFLOW_NAME: Triggered Workflow
+      BRANCH: main
+
+    steps:
+      - name: Trigger and Wait for edge-rt-build
+        id: edge-rt-build
+        shell: bash
+        run: |
+          echo "Triggering and waiting for edge-rt-build on ${{ env.OS_NAME }}..."
+          
+          # Trigger the workflow
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ env.REPO_B }}/dispatches" \
+            -d '{"event_type":"start-workflow", "client_payload": {"ref": "main"}}'
+          
+          # Wait for the workflow to complete
+          START_TIME=$(date +%s)
+          TIMEOUT=300 # 5 minutes
+          
+          echo "Trigger successful. Waiting for the new workflow run to appear..."
+          sleep 10
+          
+          while true; do
+            CURRENT_TIME=$(date +%s)
+            ELAPSED=$((CURRENT_TIME - START_TIME))
+          
+            if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+              echo "Workflow stuck or timed out after 5 minutes."
+              exit 1
+            fi
+            
+            # Fetch the workflow runs and print a list of names for debugging
+            WORKFLOW_RUNS=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+              "https://api.github.com/repos/${{ env.REPO_B }}/actions/runs?branch=${{ env.BRANCH }}")
+            
+            echo "--- API Response Debugging ---"
+            echo "Expected Workflow Name: ${{ env.WORKFLOW_NAME }}"
+            echo "Available Workflow Names and Events:"
+            echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[] | "ID: \(.id), Name: \(.name), Event: \(.event), Created: \(.created_at)"' | head -n 5
+            echo "----------------------------"
+
+            # Fetch the latest workflow run ID based on creation time and name
+            RUN_ID=$(echo "$WORKFLOW_RUNS" | jq -r --arg name "$WORKFLOW_NAME" \
+              '.workflow_runs | sort_by(.created_at) | reverse | .[] | select(.name==$name) | .id' | head -n 1)
+            
+            if [ -z "$RUN_ID" ]; then
+                echo "Workflow not found, waiting for it to be created..."
+                sleep 15
+                continue
+            fi
+            
+            # Fetch the status and conclusion of the latest run
+            RUN_INFO=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+              "https://api.github.com/repos/${{ env.REPO_B }}/actions/runs/$RUN_ID")
+            
+            RUN_STATUS=$(echo "$RUN_INFO" | jq -r '.status')
+            CONCLUSION=$(echo "$RUN_INFO" | jq -r '.conclusion')
+          
+            echo "Current status: $RUN_STATUS"
+          
+            if [ "$RUN_STATUS" == "completed" ]; then
+              echo "Workflow completed with conclusion: $CONCLUSION"
+              if [ "$CONCLUSION" == "success" ]; then
+                exit 0
+              else
+                exit 1
+              fi
+            fi
+          
+            sleep 15
+          done
+          
+      - name: Trigger and Wait for edge-rt-deploy
+        id: edge-rt-deploy
+        shell: bash
+        run: |
+          echo "Triggering and waiting for edge-rt-deploy on ${{ env.OS_NAME }}..."
+          
+          # Trigger the workflow
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ env.REPO_C }}/dispatches" \
+            -d '{"event_type":"running-workflow", "client_payload": {"ref": "main"}}'
+          
+          # Wait for the workflow to complete
+          START_TIME=$(date +%s)
+          TIMEOUT=300 # 5 minutes
+          
+          echo "Trigger successful. Waiting for the new workflow run to appear..."
+          sleep 10
+          
+          while true; do
+            CURRENT_TIME=$(date +%s)
+            ELAPSED=$((CURRENT_TIME - START_TIME))
+          
+            if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+              echo "Workflow stuck or timed out after 5 minutes."
+              exit 1
+            fi
+            
+            # Fetch the workflow runs and print a list of names for debugging
+            WORKFLOW_RUNS=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+              "https://api.github.com/repos/${{ env.REPO_C }}/actions/runs?branch=${{ env.BRANCH }}")
+            
+            echo "--- API Response Debugging ---"
+            echo "Expected Workflow Name: ${{ env.WORKFLOW_NAME }}"
+            echo "Available Workflow Names and Events:"
+            echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[] | "ID: \(.id), Name: \(.name), Event: \(.event), Created: \(.created_at)"' | head -n 5
+            echo "----------------------------"
+
+            # Fetch the latest workflow run ID based on creation time and name
+            RUN_ID=$(echo "$WORKFLOW_RUNS" | jq -r --arg name "$WORKFLOW_NAME" \
+              '.workflow_runs | sort_by(.created_at) | reverse | .[] | select(.name==$name) | .id' | head -n 1)
+            
+            if [ -z "$RUN_ID" ]; then
+                echo "Workflow not found, waiting for it to be created..."
+                sleep 15
+                continue
+            fi
+            
+            # Fetch the status and conclusion of the latest run
+            RUN_INFO=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+              "https://api.github.com/repos/${{ env.REPO_C }}/actions/runs/$RUN_ID")
+            
+            RUN_STATUS=$(echo "$RUN_INFO" | jq -r '.status')
+            CONCLUSION=$(echo "$RUN_INFO" | jq -r '.conclusion')
+          
+            echo "Current status: $RUN_STATUS"
+          
+            if [ "$RUN_STATUS" == "completed" ]; then
+              echo "Workflow completed with conclusion: $CONCLUSION"
+              if [ "$CONCLUSION" == "success" ]; then
+                exit 0
+              else
+                exit 1
+              fi
+            fi
+          
+            sleep 15
+          done
+          
+      - name: Trigger Data Insight
+        run: |
+          echo "Running Data Insight on ${{ env.OS_NAME }}"
+          if [ "${{ env.OS_NAME }}" == "ubuntu-latest" ]; then
+            echo "Failing this job on purpose for ubuntu-latest."
+            exit 1
+          fi
+          echo "Data Insight job passed successfully."
+          sleep 60
+          
+      - name: Trigger AI Common
+        run: |
+          echo "Running AI Common on ${{ env.OS_NAME }}"
+          sleep 120
