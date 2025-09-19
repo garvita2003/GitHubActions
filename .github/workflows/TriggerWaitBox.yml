@@ -35,7 +35,6 @@ jobs:
           START_TIME=$(date +%s)
           TIMEOUT=300 # 5 minutes
           
-          # Add an initial sleep to allow the run to be created in the API
           echo "Trigger successful. Waiting for the new workflow run to appear..."
           sleep 10
           
@@ -48,17 +47,27 @@ jobs:
               exit 1
             fi
             
-            # Fetch the latest workflow run ID for the 'workflow_dispatch' event
-            RUN_ID=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
-              "https://api.github.com/repos/${{ env.REPO_B }}/actions/runs?branch=${{ env.BRANCH }}" \
-              | jq -r --arg name "$WORKFLOW_NAME" '.workflow_runs | sort_by(.created_at) | reverse | .[] | select(.name==$name and .event=="workflow_dispatch") | .id' | head -n 1)
+            # Fetch the workflow runs and print a list of names for debugging
+            WORKFLOW_RUNS=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
+              "https://api.github.com/repos/${{ env.REPO_B }}/actions/runs?branch=${{ env.BRANCH }}")
+            
+            echo "--- API Response Debugging ---"
+            echo "Expected Workflow Name: ${{ env.WORKFLOW_NAME }}"
+            echo "Available Workflow Names and Events:"
+            echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[] | "ID: \(.id), Name: \(.name), Event: \(.event), Created: \(.created_at)"'
+            echo "----------------------------"
+
+            # Fetch the latest workflow run ID based on creation time and name
+            # Remove the 'event=="workflow_dispatch"' filter for now to be less restrictive
+            RUN_ID=$(echo "$WORKFLOW_RUNS" | jq -r --arg name "$WORKFLOW_NAME" \
+              '.workflow_runs | sort_by(.created_at) | reverse | .[] | select(.name==$name) | .id' | head -n 1)
             
             if [ -z "$RUN_ID" ]; then
                 echo "Workflow not found, waiting for it to be created..."
                 sleep 15
                 continue
             fi
-
+            
             # Fetch the status and conclusion of the latest run
             RUN_INFO=$(curl -s -H "Authorization: token ${{ secrets.REPO_ACCESS_TOKEN }}" \
               "https://api.github.com/repos/${{ env.REPO_B }}/actions/runs/$RUN_ID")
@@ -79,7 +88,6 @@ jobs:
           
             sleep 15
           done
-
       - name: Trigger and Wait for edge-rt-deploy
         id: edge-rt-deploy
         shell: bash
