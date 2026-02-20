@@ -1,0 +1,68 @@
+name: Repo A (Remote)
+
+run-name: >
+  ci-cd 🚀 runs with: ${{
+    (
+      inputs.build || inputs.unittests || inputs['sonarqube-enabled'] ||
+      inputs['bdh-enabled'] || inputs['coverity-enabled'] ||
+      (inputs['deploy-env'] && inputs['deploy-env'] != 'N/A')
+    )
+    && format(
+      'build-config ({0}), {1}{2}{3}{4}{5}{6}',
+      inputs['build-config'],
+      (inputs.build && 'build, ') || '',
+      (inputs.unittests && 'ut, ') || '',
+      (inputs['sonarqube-enabled'] && 'sq, ') || '',
+      (inputs['bdh-enabled'] && 'bdh, ') || '',
+      (inputs['coverity-enabled'] && 'coverity, ') || '',
+      ((inputs['deploy-env'] && inputs['deploy-env'] != 'N/A') && format('deploy ({0})', inputs['deploy-env'])) || ''
+    )
+    || 'none'
+  }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      build:
+        type: boolean
+        required: false
+        default: false
+      unittests:
+        type: boolean
+        required: false
+        default: false
+      sonarqube-enabled:
+        type: boolean
+        required: false
+        default: false
+      bdh-enabled:
+        type: boolean
+        required: false
+        default: false
+      coverity-enabled:
+        type: boolean
+        required: false
+        default: false
+      build-config:
+        type: choice
+        required: true
+        options: [Debug, Release]
+        default: Release
+      deploy-env:
+        type: choice
+        required: false
+        options: [N/A, dev, qa, uat, prod]
+        default: N/A
+
+jobs:
+  call-remote:
+    uses: garvita2003/RepoC/.github/workflows/triggeredRepoC.yml@main
+    with:
+      build:             ${{ inputs.build }}
+      unittests:         ${{ inputs.unittests }}
+      sonarqube-enabled: ${{ inputs['sonarqube-enabled'] }}
+      bdh-enabled:       ${{ inputs['bdh-enabled'] }}
+      coverity-enabled:  ${{ inputs['coverity-enabled'] }}
+      build-config:      ${{ inputs['build-config'] }}
+      deploy-env:        ${{ inputs['deploy-env'] }}
+    secrets: inherit
